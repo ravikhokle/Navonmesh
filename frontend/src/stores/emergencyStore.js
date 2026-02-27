@@ -45,6 +45,18 @@ const useEmergencyStore = create((set, get) => ({
     }
   },
 
+  // ── ERS: Manually create emergency from phone call ──
+  createManualEmergency: async (payload) => {
+    try {
+      const { data } = await api.post('/ers/emergency', payload);
+      toast.success('🚨 Emergency created manually');
+      return data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to create emergency');
+      throw error;
+    }
+  },
+
   // ── ERS: Fetch all emergencies ──
   fetchEmergencies: async () => {
     set({ isLoading: true });

@@ -3,6 +3,38 @@ import User from "../models/User.js";
 import Hospital from "../models/Hospital.js";
 import { sendWhatsAppMessage } from "../utils/sendWhatsApp.js";
 
+// @desc    Manually create an emergency from a phone call (ERS officer)
+// @route   POST /api/ers/emergency
+// @access  Private (ers)
+export const createEmergencyManual = async (req, res) => {
+  try {
+    const { citizenName, citizenPhone, description, priority, latitude, longitude } = req.body;
+
+    if (!citizenName || !latitude || !longitude) {
+      return res.status(400).json({ message: "Citizen name and location (latitude/longitude) are required" });
+    }
+
+    const emergency = await Emergency.create({
+      citizenName,
+      citizenPhone: citizenPhone || "",
+      description: description || "",
+      priority: priority || "medium",
+      location: {
+        type: "Point",
+        coordinates: [parseFloat(longitude), parseFloat(latitude)],
+      },
+      createdByERS: true,
+    });
+
+    const io = req.app.get("io");
+    io.emit("new-emergency", emergency);
+
+    res.status(201).json(emergency);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Get all emergency requests (for ERS dashboard)
 // @route   GET /api/ers/emergencies
 // @access  Private (ers)
