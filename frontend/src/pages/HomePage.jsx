@@ -76,12 +76,6 @@ export default function HomePage() {
 
           {/* Nav links */}
           <div className="flex items-center gap-6">
-            <a href="#about" className="hidden sm:block text-sm text-gray-300 hover:text-red-400 transition-colors duration-300 font-medium">
-              About
-            </a>
-            <a href="#contact" className="hidden sm:block text-sm text-gray-300 hover:text-red-400 transition-colors duration-300 font-medium">
-              Contact
-            </a>
             <Link
               to="/citizen"
               className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-300 shadow-lg shadow-red-600/40 hover:shadow-red-600/60 hover:scale-105"
