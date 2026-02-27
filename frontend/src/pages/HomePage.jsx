@@ -54,10 +54,10 @@ const panels = [
 ];
 
 const stats = [
-  { icon: Clock, label: 'Avg. Response', value: '6.2 min' },
-  { icon: CheckCircle2, label: 'Success Rate', value: '94.2%' },
-  { icon: Activity, label: 'Active Units', value: '12' },
-  { icon: Zap, label: 'Emergencies Today', value: '23' },
+  { icon: Siren, label: 'Voice-Activated SOS', value: '' },
+  { icon: LayoutDashboard, label: 'Intelligent Dispatch', value: '' },
+  { icon: Activity, label: 'Real-Time Tracking', value: '' },
+  { icon: TrafficCone, label: 'Priority Traffic Clearance', value: '' },
 ];
 
 export default function HomePage() {
@@ -126,15 +126,12 @@ export default function HomePage() {
             {stats.map(({ icon: StatIcon, label, value }) => (
               <div
                 key={label}
-                className="bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 border-gray-200 shadow-lg hover:shadow-2xl hover:shadow-black/20 hover:border-black px-5 py-6 transition-all duration-300 ease-out hover:translate-y-[-4px] group cursor-pointer"
+                className="bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 border-gray-200 shadow-lg hover:shadow-2xl hover:shadow-black/20 hover:border-black px-5 py-6 transition-all duration-300 ease-out hover:translate-y-[-4px] group cursor-pointer flex flex-col items-center justify-center text-center"
               >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-lg bg-gradient-to-br from-red-500/10 to-red-600/5 group-hover:from-red-500/20 group-hover:to-red-600/10 transition-colors">
-                    <StatIcon size={18} className="text-red-500 group-hover:scale-110 transition-transform" />
-                  </div>
-                  <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">{label}</span>
+                <div className="p-2 rounded-lg bg-gradient-to-br from-red-500/10 to-red-600/5 group-hover:from-red-500/20 group-hover:to-red-600/10 transition-colors mb-3">
+                  <StatIcon size={22} className="text-red-500 group-hover:scale-110 transition-transform" />
                 </div>
-                <p className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">{value}</p>
+                <span className="text-sm font-bold text-gray-900">{label}</span>
               </div>
             ))}
           </div>
