@@ -6,7 +6,7 @@ import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
+import AuthPage from './pages/AuthPage';
 import CitizenPage from './pages/CitizenPage';
 import ERSDashboard from './pages/ERSDashboard';
 import AmbulanceDashboard from './pages/AmbulanceDashboard';
@@ -19,7 +19,7 @@ function App() {
       <Routes>
         {/* Public: Home & Login */}
         <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<AuthPage />} />
 
         {/* Citizen — no login required */}
         <Route element={<DashboardLayout title="Emergency SOS" />}>

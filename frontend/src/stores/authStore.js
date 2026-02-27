@@ -7,10 +7,10 @@ const useAuthStore = create((set) => ({
   token: localStorage.getItem('emergex_token') || null,
   isLoading: false,
 
-  login: async (email, password) => {
+  login: async (email, password, role) => {
     set({ isLoading: true });
     try {
-      const { data } = await api.post('/auth/login', { email, password });
+      const { data } = await api.post('/auth/login', { email, password, role });
       localStorage.setItem('emergex_token', data.token);
       localStorage.setItem('emergex_user', JSON.stringify(data.user));
       set({ user: data.user, token: data.token, isLoading: false });
@@ -19,6 +19,22 @@ const useAuthStore = create((set) => ({
     } catch (error) {
       set({ isLoading: false });
       toast.error(error.response?.data?.message || 'Login failed');
+      throw error;
+    }
+  },
+
+  signup: async ({ name, email, password, city, role }) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.post('/auth/signup', { name, email, password, city, role });
+      localStorage.setItem('emergex_token', data.token);
+      localStorage.setItem('emergex_user', JSON.stringify(data.user));
+      set({ user: data.user, token: data.token, isLoading: false });
+      toast.success('Account created successfully!');
+      return data.user;
+    } catch (error) {
+      set({ isLoading: false });
+      toast.error(error.response?.data?.message || 'Signup failed');
       throw error;
     }
   },
