@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Shield, Eye, EyeOff, ArrowLeft, LogIn, UserPlus } from 'lucide-react';
+import { Shield, Eye, EyeOff, LogIn, UserPlus, Mail, ArrowRight } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
 
 const ROLES = [
@@ -21,84 +21,12 @@ function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-// ─── Sub-components (outside render to avoid re-creation) ───
-
-function FormInput({ label, error, className = '', ...props }) {
-  return (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input
-        {...props}
-        className={`w-full px-3.5 py-2.5 border rounded-lg text-sm outline-none transition-all ${
-          error
-            ? 'border-red-400 focus:ring-2 focus:ring-red-200'
-            : 'border-gray-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-        }`}
-      />
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-    </div>
-  );
-}
-
-function FormSelect({ label, error, options, className = '', ...props }) {
-  return (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <select
-        {...props}
-        className={`w-full px-3.5 py-2.5 border rounded-lg text-sm outline-none transition-all bg-white cursor-pointer ${
-          error
-            ? 'border-red-400 focus:ring-2 focus:ring-red-200'
-            : 'border-gray-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-        } ${!props.value ? 'text-gray-400' : 'text-gray-900'}`}
-      >
-        <option value="">Select role...</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-    </div>
-  );
-}
-
-function FormPassword({ label, error, show, onToggle, className = '', ...props }) {
-  return (
-    <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <div className="relative">
-        <input
-          {...props}
-          type={show ? 'text' : 'password'}
-          className={`w-full px-3.5 py-2.5 pr-10 border rounded-lg text-sm outline-none transition-all ${
-            error
-              ? 'border-red-400 focus:ring-2 focus:ring-red-200'
-              : 'border-gray-300 focus:ring-2 focus:ring-red-100 focus:border-red-500'
-          }`}
-        />
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-        >
-          {show ? <EyeOff size={16} /> : <Eye size={16} />}
-        </button>
-      </div>
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════
-// Main Auth Page
-// ═══════════════════════════════════════════════════════════
-
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const roleHint = searchParams.get('role') || '';
+
+  const [activeTab, setActiveTab] = useState('login');
 
   // ─── Login State ───
   const [loginForm, setLoginForm] = useState({
@@ -121,19 +49,17 @@ export default function AuthPage() {
   const [signupErrors, setSignupErrors] = useState({});
   const [showSignupPw, setShowSignupPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
-
-  // ─── Mobile tab ───
-  const [activeTab, setActiveTab] = useState('login');
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const { login, signup, isLoading } = useAuthStore();
 
-  // ═══════════ LOGIN ═══════════
+  // ═══════ LOGIN ═══════
   const validateLogin = () => {
     const errs = {};
     if (!loginForm.email.trim()) errs.email = 'Email is required';
     else if (!validateEmail(loginForm.email)) errs.email = 'Invalid email format';
     if (!loginForm.password) errs.password = 'Password is required';
-    else if (loginForm.password.length < 6) errs.password = 'Minimum 6 characters';
+    else if (loginForm.password.length < 6) errs.password = 'Min 6 characters';
     if (!loginForm.role) errs.role = 'Select a role';
     setLoginErrors(errs);
     return Object.keys(errs).length === 0;
@@ -150,16 +76,16 @@ export default function AuthPage() {
     }
   };
 
-  // ═══════════ SIGNUP ═══════════
+  // ═══════ SIGNUP ═══════
   const validateSignup = () => {
     const errs = {};
     if (!signupForm.name.trim()) errs.name = 'Full name is required';
     if (!signupForm.email.trim()) errs.email = 'Email is required';
     else if (!validateEmail(signupForm.email)) errs.email = 'Invalid email format';
     if (!signupForm.password) errs.password = 'Password is required';
-    else if (signupForm.password.length < 6) errs.password = 'Minimum 6 characters';
+    else if (signupForm.password.length < 6) errs.password = 'Min 6 characters';
     if (!signupForm.confirm) errs.confirm = 'Confirm your password';
-    else if (signupForm.confirm !== signupForm.password) errs.confirm = 'Passwords do not match';
+    else if (signupForm.confirm !== signupForm.password) errs.confirm = "Passwords don't match";
     if (!signupForm.city.trim()) errs.city = 'City is required';
     if (!signupForm.role) errs.role = 'Select a role';
     setSignupErrors(errs);
@@ -170,233 +96,322 @@ export default function AuthPage() {
     e.preventDefault();
     if (!validateSignup()) return;
     try {
-      const user = await signup({
+      await signup({
         name: signupForm.name,
         email: signupForm.email,
         password: signupForm.password,
         city: signupForm.city,
         role: signupForm.role,
       });
-      navigate(ROLE_ROUTES[user.role] || '/');
+      setSignupSuccess(true);
     } catch {
       // toast handled in store
     }
   };
 
-  // ═══════════ RENDER ═══════════
+  // ═══════ RENDER ═══════
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-red-50 flex flex-col">
-      {/* Top bar */}
-      <div className="px-4 sm:px-8 pt-6">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-600 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          Back to Home
-        </Link>
-      </div>
-
-      {/* Centered card */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8 sm:py-12">
-        <div className="w-full max-w-4xl">
-          {/* Logo header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-red-600 rounded-xl mb-3 shadow-lg shadow-red-600/20">
-              <Shield size={28} className="text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Emergex</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Personnel Authentication Portal</p>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-md">
+        {/* ── Logo ── */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-red-600 rounded-xl mb-3 shadow-lg shadow-red-600/20">
+            <Shield size={24} className="text-white" />
           </div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Emergex</h1>
+          <p className="text-sm text-gray-400 mt-1">Sign in to your dashboard</p>
+        </div>
 
-          {/* Mobile Tabs */}
-          <div className="flex lg:hidden mb-4 bg-white rounded-xl border border-gray-200 p-1">
+        {/* ── Card ── */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200/70 overflow-hidden">
+          {/* Tabs */}
+          <div className="flex border-b border-gray-100 bg-gray-50/60 p-1.5 mx-4 mt-4 rounded-xl">
             <button
               onClick={() => setActiveTab('login')}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors cursor-pointer ${
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'login'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600'
               }`}
             >
-              Login
+              <LogIn size={15} />
+              Sign In
             </button>
             <button
-              onClick={() => setActiveTab('signup')}
-              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors cursor-pointer ${
+              onClick={() => { setActiveTab('signup'); setSignupSuccess(false); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'signup'
-                  ? 'bg-red-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600'
               }`}
             >
+              <UserPlus size={15} />
               Sign Up
             </button>
           </div>
 
-          {/* Card */}
-          <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/60 border border-gray-200/80 overflow-hidden">
-            <div className="grid grid-cols-1 lg:grid-cols-2">
-              {/* ══════════ LOGIN SIDE ══════════ */}
-              <div className={`p-6 sm:p-8 ${activeTab !== 'login' ? 'hidden lg:block' : ''}`}>
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
-                    <LogIn size={16} className="text-red-600" />
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-900">Login</h2>
-                </div>
-
-                <form onSubmit={handleLogin} className="space-y-4" noValidate>
-                  <FormInput
-                    label="Email Address"
+          {/* ══════════ LOGIN TAB ══════════ */}
+          {activeTab === 'login' && (
+            <div className="p-6 pt-5">
+              <form onSubmit={handleLogin} className="space-y-4" noValidate>
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                  <input
                     type="email"
-                    placeholder="you@emergex.com"
+                    placeholder="you@example.com"
                     value={loginForm.email}
                     onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                    error={loginErrors.email}
+                    className={`w-full px-3.5 py-2.5 border rounded-lg text-sm outline-none transition-all ${
+                      loginErrors.email
+                        ? 'border-red-400 focus:ring-2 focus:ring-red-100'
+                        : 'border-gray-200 focus:ring-2 focus:ring-red-100 focus:border-red-400'
+                    }`}
                   />
-
-                  <FormPassword
-                    label="Password"
-                    placeholder="••••••••"
-                    value={loginForm.password}
-                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                    show={showLoginPw}
-                    onToggle={() => setShowLoginPw(!showLoginPw)}
-                    error={loginErrors.password}
-                  />
-
-                  <FormSelect
-                    label="Role"
-                    options={ROLES}
-                    value={loginForm.role}
-                    onChange={(e) => setLoginForm({ ...loginForm, role: e.target.value })}
-                    error={loginErrors.role}
-                  />
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer mt-2"
-                  >
-                    {isLoading ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      <>
-                        <LogIn size={16} />
-                        Sign In
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                <p className="mt-5 text-xs text-gray-400 text-center leading-relaxed">
-                  Only authorized ERS, Ambulance, Hospital &amp; Traffic personnel can login.
-                  Citizens do not need an account.
-                </p>
-              </div>
-
-              {/* ══════════ SIGNUP SIDE ══════════ */}
-              <div className={`p-6 sm:p-8 border-t lg:border-t-0 lg:border-l border-gray-200 ${activeTab !== 'signup' ? 'hidden lg:block' : ''}`}>
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
-                    <UserPlus size={16} className="text-emerald-600" />
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-900">Sign Up</h2>
+                  {loginErrors.email && <p className="mt-1 text-xs text-red-500">{loginErrors.email}</p>}
                 </div>
 
-                <form onSubmit={handleSignup} className="space-y-4" noValidate>
-                  <FormInput
-                    label="Full Name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={signupForm.name}
-                    onChange={(e) => setSignupForm({ ...signupForm, name: e.target.value })}
-                    error={signupErrors.name}
-                  />
-
-                  <FormInput
-                    label="Official Email"
-                    type="email"
-                    placeholder="john@emergex.com"
-                    value={signupForm.email}
-                    onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
-                    error={signupErrors.email}
-                  />
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormPassword
-                      label="Password"
-                      placeholder="Min 6 chars"
-                      value={signupForm.password}
-                      onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
-                      show={showSignupPw}
-                      onToggle={() => setShowSignupPw(!showSignupPw)}
-                      error={signupErrors.password}
+                {/* Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                  <div className="relative">
+                    <input
+                      type={showLoginPw ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={loginForm.password}
+                      onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                      className={`w-full px-3.5 py-2.5 pr-10 border rounded-lg text-sm outline-none transition-all ${
+                        loginErrors.password
+                          ? 'border-red-400 focus:ring-2 focus:ring-red-100'
+                          : 'border-gray-200 focus:ring-2 focus:ring-red-100 focus:border-red-400'
+                      }`}
                     />
-
-                    <FormPassword
-                      label="Confirm Password"
-                      placeholder="Re-enter"
-                      value={signupForm.confirm}
-                      onChange={(e) => setSignupForm({ ...signupForm, confirm: e.target.value })}
-                      show={showConfirmPw}
-                      onToggle={() => setShowConfirmPw(!showConfirmPw)}
-                      error={signupErrors.confirm}
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPw(!showLoginPw)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    >
+                      {showLoginPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
+                  {loginErrors.password && <p className="mt-1 text-xs text-red-500">{loginErrors.password}</p>}
+                </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormInput
-                      label="City"
-                      type="text"
-                      placeholder="e.g. Pune"
-                      value={signupForm.city}
-                      onChange={(e) => setSignupForm({ ...signupForm, city: e.target.value })}
-                      error={signupErrors.city}
-                    />
-
-                    <FormSelect
-                      label="Role"
-                      options={ROLES}
-                      value={signupForm.role}
-                      onChange={(e) => setSignupForm({ ...signupForm, role: e.target.value })}
-                      error={signupErrors.role}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer mt-2"
+                {/* Role */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
+                  <select
+                    value={loginForm.role}
+                    onChange={(e) => setLoginForm({ ...loginForm, role: e.target.value })}
+                    className={`w-full px-3.5 py-2.5 border rounded-lg text-sm outline-none transition-all bg-white cursor-pointer ${
+                      loginErrors.role
+                        ? 'border-red-400 focus:ring-2 focus:ring-red-100'
+                        : 'border-gray-200 focus:ring-2 focus:ring-red-100 focus:border-red-400'
+                    } ${!loginForm.role ? 'text-gray-400' : 'text-gray-900'}`}
                   >
-                    {isLoading ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Creating account...
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus size={16} />
-                        Create Account
-                      </>
-                    )}
-                  </button>
-                </form>
+                    <option value="">Select role...</option>
+                    {ROLES.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                  {loginErrors.role && <p className="mt-1 text-xs text-red-500">{loginErrors.role}</p>}
+                </div>
 
-                <p className="mt-5 text-xs text-gray-400 text-center leading-relaxed">
-                  Signup requires admin approval. Your account will be verified before activation.
-                </p>
-              </div>
+                {/* Forgot password */}
+                <div className="flex justify-end">
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-gray-800 hover:to-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-gray-900/20"
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign In'
+                  )}
+                </button>
+              </form>
+
+              {/* Footer */}
+              <p className="mt-5 text-center text-sm text-gray-400">
+                Citizens don't need an account.{' '}
+                <Link to="/citizen" className="text-red-600 hover:text-red-700 font-semibold transition-colors">
+                  Go to SOS <ArrowRight size={13} className="inline mb-0.5" />
+                </Link>
+              </p>
             </div>
-          </div>
+          )}
 
-          {/* Bottom note */}
-          <p className="text-center text-xs text-gray-400 mt-6">
-            All access is monitored and logged &bull; Emergex &copy; {new Date().getFullYear()}
-          </p>
+          {/* ══════════ SIGNUP TAB ══════════ */}
+          {activeTab === 'signup' && (
+            <div className="p-6 pt-5">
+              {signupSuccess ? (
+                <div className="text-center py-6">
+                  <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Mail size={28} className="text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Check Your Email</h3>
+                  <p className="text-sm text-gray-500 mb-1">
+                    We've sent a verification link to
+                  </p>
+                  <p className="text-sm font-semibold text-gray-700 mb-4">{signupForm.email}</p>
+                  <p className="text-xs text-gray-400 mb-6">
+                    Click the link to verify, then come back and sign in.
+                  </p>
+                  <button
+                    onClick={() => { setSignupSuccess(false); setActiveTab('login'); }}
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-gray-900 to-gray-800 text-white font-semibold px-6 py-2.5 rounded-xl transition-all cursor-pointer shadow-md shadow-gray-900/20 hover:from-gray-800 hover:to-gray-700"
+                  >
+                    <LogIn size={16} />
+                    Go to Sign In
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <form onSubmit={handleSignup} className="space-y-4" noValidate>
+                    {/* Name */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
+                      <input
+                        type="text"
+                        placeholder="John Doe"
+                        value={signupForm.name}
+                        onChange={(e) => setSignupForm({ ...signupForm, name: e.target.value })}
+                        className={`w-full px-3.5 py-2.5 border rounded-lg text-sm outline-none transition-all ${
+                          signupErrors.name ? 'border-red-400' : 'border-gray-200 focus:ring-2 focus:ring-red-100 focus:border-red-400'
+                        }`}
+                      />
+                      {signupErrors.name && <p className="mt-1 text-xs text-red-500">{signupErrors.name}</p>}
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                      <input
+                        type="email"
+                        placeholder="you@example.com"
+                        value={signupForm.email}
+                        onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                        className={`w-full px-3.5 py-2.5 border rounded-lg text-sm outline-none transition-all ${
+                          signupErrors.email ? 'border-red-400' : 'border-gray-200 focus:ring-2 focus:ring-red-100 focus:border-red-400'
+                        }`}
+                      />
+                      {signupErrors.email && <p className="mt-1 text-xs text-red-500">{signupErrors.email}</p>}
+                    </div>
+
+                    {/* Password + Confirm */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                        <div className="relative">
+                          <input
+                            type={showSignupPw ? 'text' : 'password'}
+                            placeholder="Min 6 chars"
+                            value={signupForm.password}
+                            onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
+                            className={`w-full px-3.5 py-2.5 pr-9 border rounded-lg text-sm outline-none transition-all ${
+                              signupErrors.password ? 'border-red-400' : 'border-gray-200 focus:ring-2 focus:ring-red-100 focus:border-red-400'
+                            }`}
+                          />
+                          <button type="button" onClick={() => setShowSignupPw(!showSignupPw)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
+                            {showSignupPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                        {signupErrors.password && <p className="mt-1 text-xs text-red-500">{signupErrors.password}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm</label>
+                        <div className="relative">
+                          <input
+                            type={showConfirmPw ? 'text' : 'password'}
+                            placeholder="Re-enter"
+                            value={signupForm.confirm}
+                            onChange={(e) => setSignupForm({ ...signupForm, confirm: e.target.value })}
+                            className={`w-full px-3.5 py-2.5 pr-9 border rounded-lg text-sm outline-none transition-all ${
+                              signupErrors.confirm ? 'border-red-400' : 'border-gray-200 focus:ring-2 focus:ring-red-100 focus:border-red-400'
+                            }`}
+                          />
+                          <button type="button" onClick={() => setShowConfirmPw(!showConfirmPw)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer">
+                            {showConfirmPw ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                        {signupErrors.confirm && <p className="mt-1 text-xs text-red-500">{signupErrors.confirm}</p>}
+                      </div>
+                    </div>
+
+                    {/* City + Role */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">City</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Pune"
+                          value={signupForm.city}
+                          onChange={(e) => setSignupForm({ ...signupForm, city: e.target.value })}
+                          className={`w-full px-3.5 py-2.5 border rounded-lg text-sm outline-none transition-all ${
+                            signupErrors.city ? 'border-red-400' : 'border-gray-200 focus:ring-2 focus:ring-red-100 focus:border-red-400'
+                          }`}
+                        />
+                        {signupErrors.city && <p className="mt-1 text-xs text-red-500">{signupErrors.city}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Role</label>
+                        <select
+                          value={signupForm.role}
+                          onChange={(e) => setSignupForm({ ...signupForm, role: e.target.value })}
+                          className={`w-full px-3.5 py-2.5 border rounded-lg text-sm outline-none transition-all bg-white cursor-pointer ${
+                            signupErrors.role ? 'border-red-400' : 'border-gray-200 focus:ring-2 focus:ring-red-100 focus:border-red-400'
+                          } ${!signupForm.role ? 'text-gray-400' : 'text-gray-900'}`}
+                        >
+                          <option value="">Select...</option>
+                          {ROLES.map((r) => (
+                            <option key={r.value} value={r.value}>{r.label}</option>
+                          ))}
+                        </select>
+                        {signupErrors.role && <p className="mt-1 text-xs text-red-500">{signupErrors.role}</p>}
+                      </div>
+                    </div>
+
+                    {/* Submit */}
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-gray-800 hover:to-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-gray-900/20 mt-1"
+                    >
+                      {isLoading ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Creating account...
+                        </>
+                      ) : (
+                        'Create Account'
+                      )}
+                    </button>
+                  </form>
+
+                  {/* Footer */}
+                  <p className="mt-5 text-center text-sm text-gray-400">
+                    Citizens don't need an account.{' '}
+                    <Link to="/citizen" className="text-red-600 hover:text-red-700 font-semibold transition-colors">
+                      Go to SOS <ArrowRight size={13} className="inline mb-0.5" />
+                    </Link>
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

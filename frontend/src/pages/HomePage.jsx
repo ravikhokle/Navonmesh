@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Shield,
   Siren,
@@ -11,7 +11,11 @@ import {
   CheckCircle2,
   Activity,
   Zap,
+  LogIn,
+  LogOut,
+  User,
 } from 'lucide-react';
+import useAuthStore from '../stores/authStore';
 import heroBg from '../assets/hero-bg.jpg';
 
 const panels = [
@@ -60,7 +64,27 @@ const stats = [
   { icon: TrafficCone, label: 'Priority Traffic Clearance', value: '' },
 ];
 
+const ROLE_ROUTES = {
+  ers: '/ers',
+  ambulance: '/ambulance',
+  hospital: '/hospital',
+  traffic: '/traffic',
+};
+
 export default function HomePage() {
+  const { user, token, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+  };
+
+  const handleDashboard = () => {
+    if (user?.role && ROLE_ROUTES[user.role]) {
+      navigate(ROLE_ROUTES[user.role]);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* ─── Navbar ─── */}
@@ -75,13 +99,45 @@ export default function HomePage() {
           </Link>
 
           {/* Nav links */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             <Link
               to="/citizen"
               className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-300 shadow-lg shadow-red-600/40 hover:shadow-red-600/60 hover:scale-105"
             >
               Emergency SOS
             </Link>
+
+            {token && user ? (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleDashboard}
+                  className="flex items-center gap-2 text-sm font-medium text-gray-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold text-white">
+                      {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                  <span className="hidden sm:inline">{user.name}</span>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-red-400 transition-colors cursor-pointer"
+                  title="Sign Out"
+                >
+                  <LogOut size={16} />
+                  <span className="hidden sm:inline">Logout</span>
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-300 hover:text-white transition-colors border border-white/20 hover:border-white/40 px-3.5 py-2 rounded-lg"
+              >
+                <LogIn size={16} />
+                Login
+              </Link>
+            )}
           </div>
         </div>
       </nav>

@@ -12,6 +12,9 @@ import ERSDashboard from './pages/ERSDashboard';
 import AmbulanceDashboard from './pages/AmbulanceDashboard';
 import HospitalDashboard from './pages/HospitalDashboard';
 import TrafficDashboard from './pages/TrafficDashboard';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 
 function App() {
   return (
@@ -20,6 +23,9 @@ function App() {
         {/* Public: Home & Login */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<AuthPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
 
         {/* Citizen — no login required */}
         <Route element={<DashboardLayout title="Emergency SOS" />}>

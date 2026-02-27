@@ -1,7 +1,6 @@
 import Emergency from "../models/Emergency.js";
 import User from "../models/User.js";
 import Hospital from "../models/Hospital.js";
-import { sendWhatsAppMessage } from "../utils/sendWhatsApp.js";
 
 // @desc    Manually create an emergency from a phone call (ERS officer)
 // @route   POST /api/ers/emergency
@@ -140,18 +139,6 @@ export const notifyHospital = async (req, res) => {
       return res.status(404).json({ message: "Emergency not found" });
     }
 
-    // Send WhatsApp notification to hospital (if phone available)
-    if (emergency.assignedHospital?.phone) {
-      try {
-        await sendWhatsAppMessage(
-          emergency.assignedHospital.phone,
-          `🚨 EMERGEX ALERT: Incoming emergency patient "${emergency.citizenName}". Priority: ${emergency.priority}. Please prepare.`
-        );
-      } catch (err) {
-        console.error("WhatsApp notification failed:", err.message);
-      }
-    }
-
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
     io.emit("incoming-patient", emergency);
@@ -235,21 +222,6 @@ export const sendAlertAll = async (req, res) => {
     }
     if (hospitalId) {
       io.emit("incoming-patient", emergency);
-    }
-
-    // WhatsApp to hospital if assigned
-    if (hospitalId) {
-      const hospital = await Hospital.findById(hospitalId);
-      if (hospital?.phone) {
-        try {
-          await sendWhatsAppMessage(
-            hospital.phone,
-            `\uD83D\uDEA8 EMERGEX ALERT: Incoming patient "${emergency.citizenName}". Priority: ${emergency.priority}. Please prepare.`
-          );
-        } catch (err) {
-          console.error("WhatsApp notification failed:", err.message);
-        }
-      }
     }
 
     res.json(emergency);
