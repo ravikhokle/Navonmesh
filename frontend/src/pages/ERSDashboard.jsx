@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { toast } from 'react-toastify';
 import {
   AlertTriangle,
   Truck,
@@ -15,11 +16,13 @@ import {
   Send,
   Siren,
   Circle,
+  Navigation,
 } from 'lucide-react';
 import useEmergencyStore from '../stores/emergencyStore';
 import socket, { connectSocket } from '../lib/socket';
 import StatusBadge from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import LiveMap from '../components/common/LiveMap';
 
 export default function ERSDashboard() {
   const {
@@ -41,6 +44,9 @@ export default function ERSDashboard() {
     isLoading,
   } = useEmergencyStore();
 
+  // Live ambulance & traffic positions received via socket
+  const [liveLocations, setLiveLocations] = useState({});
+
   useEffect(() => {
     fetchEmergencies();
     fetchAvailableAmbulances();
@@ -48,13 +54,31 @@ export default function ERSDashboard() {
     fetchAvailableTrafficUsers();
     connectSocket();
 
-    socket.on('new-emergency', (data) => addEmergency(data));
+    socket.on('new-emergency', (data) => {
+      addEmergency(data);
+      toast.error('🚨 New emergency received!', { autoClose: 8000 });
+    });
     socket.on('emergency-updated', (data) => updateEmergency(data));
 
     // Real-time: when any driver/officer toggles duty, refresh the lists
     socket.on('duty-changed', (data) => {
       if (data.role === 'ambulance') fetchAvailableAmbulances();
       if (data.role === 'traffic') fetchAvailableTrafficUsers();
+      const icon = data.role === 'ambulance' ? '🚑' : '🚦';
+      toast.info(
+        `${icon} ${data.name} is now ${data.isOnDuty ? 'ON duty' : 'OFF duty'}`,
+        { autoClose: 5000 }
+      );
+    });
+
+    // Real-time: live location pings from ambulance / traffic
+    socket.on('location-update', (data) => {
+      // data: { userId, role, name, lat, lng }
+      if (!data.userId) return;
+      setLiveLocations((prev) => ({
+        ...prev,
+        [data.userId]: { lat: data.lat, lng: data.lng, name: data.name, role: data.role },
+      }));
     });
 
     // Real-time: when a hospital is registered or updated, refresh hospitals list
@@ -67,6 +91,7 @@ export default function ERSDashboard() {
       socket.off('duty-changed');
       socket.off('hospital-added');
       socket.off('hospital-updated');
+      socket.off('location-update');
     };
   }, []);
 
@@ -76,6 +101,60 @@ export default function ERSDashboard() {
     pending: emergencies.filter((e) => e.status === 'pending').length,
     completed: emergencies.filter((e) => e.status === 'completed').length,
   };
+
+  // ── Map markers: merge DB locations with live socket positions ──
+  const mapMarkers = useMemo(() => {
+    const markers = [];
+
+    // Emergencies / patient locations (red)
+    emergencies.forEach((e) => {
+      if (e.location?.coordinates) {
+        markers.push({
+          type: 'emergency',
+          lat: e.location.coordinates[1],
+          lng: e.location.coordinates[0],
+          label: `${e.citizenName ?? 'Emergency'} (${e.priority ?? ''})`,
+        });
+      }
+    });
+
+    // Hospitals (green)
+    availableHospitals.forEach((h) => {
+      if (h.location?.coordinates) {
+        markers.push({
+          type: 'hospital',
+          lat: h.location.coordinates[1],
+          lng: h.location.coordinates[0],
+          label: `${h.name} — ${h.availableBeds ?? 0} beds`,
+        });
+      }
+    });
+
+    // Ambulances (blue) — live socket position wins over DB position
+    availableAmbulances.forEach((a) => {
+      const live = liveLocations[a._id];
+      const lat = live?.lat ?? (a.currentLocation?.coordinates?.[1]);
+      const lng = live?.lng ?? (a.currentLocation?.coordinates?.[0]);
+      if (lat != null && lng != null) {
+        markers.push({ type: 'ambulance', lat, lng, label: `${a.name} (Ambulance)` });
+      }
+    });
+
+    // Traffic officers (amber) — live socket position wins over DB position
+    availableTrafficUsers.forEach((t) => {
+      const live = liveLocations[t._id];
+      const lat = live?.lat ?? (t.currentLocation?.coordinates?.[1]);
+      const lng = live?.lng ?? (t.currentLocation?.coordinates?.[0]);
+      if (lat != null && lng != null) {
+        markers.push({ type: 'traffic', lat, lng, label: `${t.name} (Traffic Officer)` });
+      }
+    });
+
+    return markers;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(emergencies), JSON.stringify(availableHospitals),
+      JSON.stringify(availableAmbulances), JSON.stringify(availableTrafficUsers),
+      liveLocations]);
 
   const refreshAll = () => {
     fetchEmergencies();
@@ -94,6 +173,23 @@ export default function ERSDashboard() {
         <StatCard icon={AlertTriangle} label="Critical" value={stats.critical} color="rose" />
         <StatCard icon={Clock} label="Pending" value={stats.pending} color="amber" />
         <StatCard icon={RefreshCw} label="Completed" value={stats.completed} color="emerald" />
+      </div>
+
+      {/* ── Live Command Map ── */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+            <Navigation size={16} className="text-red-600" />
+            Live Command Map
+            <span className="text-xs font-normal text-gray-400">
+              ({mapMarkers.length} units tracked)
+            </span>
+          </h3>
+          <button onClick={refreshAll} className="text-gray-400 hover:text-gray-600">
+            <RefreshCw size={14} />
+          </button>
+        </div>
+        <LiveMap markers={mapMarkers} height="380px" zoom={12} />
       </div>
 
       {/* Side panels: Ambulance Drivers + Hospitals */}

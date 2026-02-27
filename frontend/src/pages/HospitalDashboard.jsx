@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Building2,
   Bed,
@@ -16,6 +16,7 @@ import {
 import useHospitalStore from '../stores/hospitalStore';
 import socket, { connectSocket } from '../lib/socket';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import LiveMap from '../components/common/LiveMap';
 
 export default function HospitalDashboard() {
   const {
@@ -51,7 +52,10 @@ export default function HospitalDashboard() {
     connectSocket();
 
     socket.on('emergency-updated', () => fetchIncomingPatients());
-    socket.on('incoming-patient', (data) => addIncomingPatient(data));
+    socket.on('incoming-patient', (data) => {
+      addIncomingPatient(data);
+      toast.info('🏥 New incoming patient assigned!', { autoClose: 7000 });
+    });
 
     return () => {
       socket.off('emergency-updated');
@@ -97,6 +101,32 @@ export default function HospitalDashboard() {
 
   const beds = hospital?.availableBeds ?? 0;
   const displayBedInput = bedInput ?? beds;
+
+  // ── Map markers (hospital + incoming patient locations) ──
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const mapMarkers = useMemo(() => {
+    const markers = [];
+    if (hospital?.location?.coordinates) {
+      markers.push({
+        type: 'hospital',
+        lat: hospital.location.coordinates[1],
+        lng: hospital.location.coordinates[0],
+        label: hospital.name,
+      });
+    }
+    incomingPatients.forEach((p) => {
+      if (p.location?.coordinates) {
+        markers.push({
+          type: 'emergency',
+          lat: p.location.coordinates[1],
+          lng: p.location.coordinates[0],
+          label: `Patient: ${p.citizenName ?? 'Unknown'}`,
+        });
+      }
+    });
+    return markers;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hospital, JSON.stringify(incomingPatients)]);
 
   if (isLoading && !hospital && !showRegister) return <LoadingSpinner />;
 
@@ -243,6 +273,17 @@ export default function HospitalDashboard() {
               {hospital.phone}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Live Map */}
+      {mapMarkers.length > 0 && (
+        <div className="card">
+          <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Building2 size={16} className="text-emerald-600" />
+            Hospital &amp; Patient Map
+          </h3>
+          <LiveMap markers={mapMarkers} height="280px" zoom={13} />
         </div>
       )}
 

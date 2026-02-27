@@ -64,6 +64,13 @@ io.on("connection", (socket) => {
     console.log(`Socket ${socket.id} joined emergency: ${emergencyId}`);
   });
 
+  // Real-time location ping from ambulance / traffic officers
+  // data: { userId, role, name, lat, lng }
+  socket.on("update-location", (data) => {
+    // Broadcast to all OTHER clients so ERS / hospitals can see live movement
+    socket.broadcast.emit("location-update", data);
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
   });

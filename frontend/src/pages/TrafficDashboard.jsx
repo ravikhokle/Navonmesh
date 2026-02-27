@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { toast } from 'react-toastify';
 import {
   Shield,
   ShieldCheck,
@@ -8,10 +9,12 @@ import {
   CheckCircle2,
   RefreshCw,
   Siren,
+  Navigation,
 } from 'lucide-react';
 import useTrafficStore from '../stores/trafficStore';
 import socket, { connectSocket } from '../lib/socket';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import LiveMap from '../components/common/LiveMap';
 
 export default function TrafficDashboard() {
   const {
@@ -25,49 +28,119 @@ export default function TrafficDashboard() {
     isLoading,
   } = useTrafficStore();
 
+  const [myLocation, setMyLocation] = useState(null);
+  const watchIdRef = useRef(null);
+
+  // Read auth user from localStorage for socket payloads
+  const authUser = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('emergex_user');
+      return raw && raw !== 'undefined' ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // ── Socket + initial data ──
   useEffect(() => {
     fetchDutyStatus();
     fetchAlerts();
     connectSocket();
 
-    socket.on('traffic-alert', (data) => addAlert(data));
+    socket.on('traffic-alert', (data) => {
+      addAlert(data);
+      toast.warning('🚦 New emergency route alert!', { autoClose: 8000 });
+    });
     socket.on('emergency-updated', () => fetchAlerts());
 
     return () => {
       socket.off('traffic-alert');
       socket.off('emergency-updated');
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── GPS tracking: start when on duty, stop when off ──
+  useEffect(() => {
+    if (watchIdRef.current !== null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+
+    if (isOnDuty && navigator.geolocation) {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setMyLocation({ lat, lng });
+
+          // Broadcast live position to ERS and all connected clients
+          socket.emit('update-location', {
+            userId: authUser?._id ?? authUser?.id,
+            role: 'traffic',
+            name: authUser?.name ?? 'Traffic Officer',
+            lat,
+            lng,
+          });
+        },
+        (err) => console.warn('Geolocation error:', err.message),
+        { enableHighAccuracy: true, maximumAge: 8000, timeout: 15000 }
+      );
+    } else {
+      setMyLocation(null);
+    }
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [isOnDuty, authUser]);
+
+  // ── Derived state ──
   const pendingAlerts = activeAlerts.filter((a) => !a.routeCleared);
   const clearedAlerts = activeAlerts.filter((a) => a.routeCleared);
+
+  // ── Map markers ──
+  const mapMarkers = useMemo(() => {
+    const markers = [];
+    if (myLocation) {
+      markers.push({ type: 'self', lat: myLocation.lat, lng: myLocation.lng, label: 'My Location' });
+    }
+    pendingAlerts.forEach((alert) => {
+      if (alert.location?.coordinates) {
+        markers.push({
+          type: 'emergency',
+          lat: alert.location.coordinates[1],
+          lng: alert.location.coordinates[0],
+          label: `${alert.citizenName ?? 'Emergency'} — ${alert.priority ?? 'N/A'}`,
+        });
+      }
+    });
+    return markers;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myLocation, JSON.stringify(pendingAlerts)]);
 
   if (isLoading && activeAlerts.length === 0) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">
-      {/* Duty top bar */}
-      <div
-        className={`card flex flex-col sm:flex-row items-center justify-between gap-4 ${
-          isOnDuty ? 'ring-2 ring-emerald-400' : ''
-        }`}
-      >
+
+      {/* ── Duty Top Bar ── */}
+      <div className={`card flex flex-col sm:flex-row items-center justify-between gap-4 ${isOnDuty ? 'ring-2 ring-emerald-400' : ''}`}>
         <div className="flex items-center gap-4">
-          <div
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-              isOnDuty ? 'bg-emerald-50' : 'bg-gray-100'
-            }`}
-          >
-            {isOnDuty ? (
-              <ShieldCheck size={28} className="text-emerald-600" />
-            ) : (
-              <ShieldOff size={28} className="text-gray-400" />
-            )}
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isOnDuty ? 'bg-emerald-50' : 'bg-gray-100'}`}>
+            {isOnDuty ? <ShieldCheck size={28} className="text-emerald-600" /> : <ShieldOff size={28} className="text-gray-400" />}
           </div>
           <div>
             <h2 className="text-xl font-bold text-gray-900">Traffic Control</h2>
             <p className={`text-sm ${isOnDuty ? 'text-emerald-600' : 'text-gray-500'}`}>
-              {isOnDuty ? 'On Duty — Receiving Alerts' : 'Off Duty'}
+              {isOnDuty
+                ? myLocation
+                  ? '📡 On Duty — Sharing live location'
+                  : 'On Duty — Receiving Alerts'
+                : 'Off Duty'}
             </p>
           </div>
         </div>
@@ -83,7 +156,7 @@ export default function TrafficDashboard() {
         </button>
       </div>
 
-      {/* Stats */}
+      {/* ── Stats ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card flex items-center gap-4">
           <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
@@ -114,7 +187,31 @@ export default function TrafficDashboard() {
         </div>
       </div>
 
-      {/* Pending Alerts */}
+      {/* ── Live Map ── */}
+      <div className="card">
+        <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <Navigation size={16} className="text-amber-600" />
+          Live Map — Emergency Routes
+          {myLocation && (
+            <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-md">
+              <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-ping inline-block" />
+              GPS Active
+            </span>
+          )}
+        </h3>
+        <LiveMap
+          markers={mapMarkers}
+          height="300px"
+          zoom={mapMarkers.length > 0 ? 13 : 11}
+        />
+        {!isOnDuty && (
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            Go on duty to start sharing your live location
+          </p>
+        )}
+      </div>
+
+      {/* ── Pending Alerts ── */}
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Siren size={18} className="text-amber-500" />
@@ -133,15 +230,13 @@ export default function TrafficDashboard() {
           <div className="space-y-3">
             {pendingAlerts.map((alert, idx) => (
               <div
-                key={alert._id || idx}
+                key={alert._id ?? idx}
                 className="border border-amber-200 bg-amber-50/40 rounded-xl p-4"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <AlertTriangle size={16} className="text-amber-600" />
-                    <p className="font-medium text-gray-900">
-                      {alert.citizenName || 'Emergency'}
-                    </p>
+                    <p className="font-medium text-gray-900">{alert.citizenName ?? 'Emergency'}</p>
                   </div>
                   <span
                     className={`text-xs font-semibold px-2 py-1 rounded-md ${
@@ -152,7 +247,7 @@ export default function TrafficDashboard() {
                         : 'bg-amber-100 text-amber-700'
                     }`}
                   >
-                    {alert.priority?.toUpperCase() || 'N/A'}
+                    {alert.priority?.toUpperCase() ?? 'N/A'}
                   </span>
                 </div>
                 {alert.description && (
@@ -161,8 +256,8 @@ export default function TrafficDashboard() {
                 {alert.location?.coordinates && (
                   <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
                     <MapPin size={12} />
-                    {alert.location.coordinates[1].toFixed(4)},{' '}
-                    {alert.location.coordinates[0].toFixed(4)}
+                    {alert.location.coordinates[1].toFixed(5)},{' '}
+                    {alert.location.coordinates[0].toFixed(5)}
                   </p>
                 )}
                 <button
@@ -178,7 +273,7 @@ export default function TrafficDashboard() {
         )}
       </div>
 
-      {/* Cleared alerts */}
+      {/* ── Cleared Routes ── */}
       {clearedAlerts.length > 0 && (
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -188,14 +283,12 @@ export default function TrafficDashboard() {
           <div className="space-y-2">
             {clearedAlerts.map((alert, idx) => (
               <div
-                key={alert._id || idx}
+                key={alert._id ?? idx}
                 className="flex items-center justify-between border border-gray-100 rounded-lg p-3"
               >
                 <div className="flex items-center gap-2">
                   <CheckCircle2 size={14} className="text-emerald-500" />
-                  <span className="text-sm text-gray-700">
-                    {alert.citizenName || 'Emergency'}
-                  </span>
+                  <span className="text-sm text-gray-700">{alert.citizenName ?? 'Emergency'}</span>
                 </div>
                 <span className="text-xs text-gray-400">
                   {alert.updatedAt
