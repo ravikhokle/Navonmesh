@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  createEmergencyManual,
   getEmergencies,
   assignAmbulance,
   setPriority,
@@ -17,6 +18,7 @@ const router = express.Router();
 router.use(protect, authorize("ers"));
 
 router.get("/emergencies", getEmergencies);
+router.post("/emergency", createEmergencyManual);
 router.get("/ambulances", getAvailableAmbulances);
 router.get("/hospitals", getHospitals);
 router.get("/traffic-users", getTrafficUsers);

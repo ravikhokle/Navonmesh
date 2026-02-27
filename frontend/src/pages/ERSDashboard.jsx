@@ -17,6 +17,9 @@ import {
   Siren,
   Circle,
   Navigation,
+  Plus,
+  X,
+  PhoneIncoming,
 } from 'lucide-react';
 import useEmergencyStore from '../stores/emergencyStore';
 import useLocationStore from '../stores/locationStore';
@@ -42,10 +45,61 @@ export default function ERSDashboard() {
     sendAlertAll,
     addEmergency,
     updateEmergency,
+    createManualEmergency,
     isLoading,
   } = useEmergencyStore();
 
   const { liveLocations, updateLocation, fetchLiveLocations, removeLocation } = useLocationStore();
+
+  // ── Manual entry modal state ──
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    citizenName: '',
+    citizenPhone: '',
+    description: '',
+    priority: 'medium',
+    latitude: '',
+    longitude: '',
+  });
+  const [manualLoading, setManualLoading] = useState(false);
+  const [addressQuery, setAddressQuery] = useState('');
+  const [searchingAddress, setSearchingAddress] = useState(false);
+
+  const handlePatientAddressSearch = async () => {
+    if (!addressQuery.trim()) { toast.error('Enter the patient\'s address first'); return; }
+    setSearchingAddress(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addressQuery)}&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const results = await res.json();
+      if (!results.length) { toast.error('Address not found. Try a more specific address.'); return; }
+      setManualForm((prev) => ({
+        ...prev,
+        latitude: parseFloat(results[0].lat).toFixed(6),
+        longitude: parseFloat(results[0].lon).toFixed(6),
+      }));
+      toast.success('Patient location found!');
+    } catch { toast.error('Could not look up address'); }
+    finally { setSearchingAddress(false); }
+  };
+
+  const handleManualSubmit = async (e) => {
+    e.preventDefault();
+    if (!manualForm.citizenName || !manualForm.latitude || !manualForm.longitude) {
+      toast.error('Name and location are required');
+      return;
+    }
+    setManualLoading(true);
+    try {
+      await createManualEmergency(manualForm);
+      setShowManualModal(false);
+      setManualForm({ citizenName: '', citizenPhone: '', description: '', priority: 'medium', latitude: '', longitude: '' });
+      setAddressQuery('');
+    } catch { /* toasted by store */ }
+    finally { setManualLoading(false); }
+  };
 
   useEffect(() => {
     fetchEmergencies();
@@ -192,12 +246,24 @@ export default function ERSDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={AlertTriangle} label="Total" value={stats.total} color="red" />
-        <StatCard icon={AlertTriangle} label="Critical" value={stats.critical} color="rose" />
-        <StatCard icon={Clock} label="Pending" value={stats.pending} color="amber" />
-        <StatCard icon={RefreshCw} label="Completed" value={stats.completed} color="emerald" />
+      {/* Stats + Add Emergency button */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1">
+          <StatCard icon={AlertTriangle} label="Total" value={stats.total} color="red" />
+          <StatCard icon={AlertTriangle} label="Critical" value={stats.critical} color="rose" />
+          <StatCard icon={Clock} label="Pending" value={stats.pending} color="amber" />
+          <StatCard icon={RefreshCw} label="Completed" value={stats.completed} color="emerald" />
+        </div>
+        <button
+          onClick={() => setShowManualModal(true)}
+          className="flex flex-col items-center gap-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white px-4 py-3 rounded-2xl transition-all duration-150 shadow-lg shadow-red-200 flex-shrink-0 cursor-pointer"
+        >
+          <div className="flex items-center gap-1.5">
+            <PhoneIncoming size={18} />
+            <Plus size={16} />
+          </div>
+          <span className="text-[11px] font-bold leading-none">Add Member</span>
+        </button>
       </div>
 
       {/* ── Live Command Map ── */}
@@ -345,6 +411,209 @@ export default function ERSDashboard() {
           </div>
         )}
       </div>
+
+      {/* ── Manual Emergency Modal (108 Phone Call) ── */}
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowManualModal(false)}
+          />
+
+          {/* Modal Panel */}
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                  <PhoneIncoming size={20} className="text-red-600" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">108 Call — Add Member</h2>
+                  <p className="text-xs text-gray-500">Manually enter patient details from phone call</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowManualModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleManualSubmit} className="px-6 py-5 space-y-4">
+
+              {/* Notice banner */}
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                <Phone size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Use this form only when a patient calls <strong>108</strong> directly. Patient-submitted emergencies are handled automatically.
+                </p>
+              </div>
+
+              {/* Patient Name */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Patient Name <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={manualForm.citizenName}
+                    onChange={(e) => setManualForm((p) => ({ ...p, citizenName: e.target.value }))}
+                    placeholder="Enter patient's full name"
+                    required
+                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Phone Number */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={manualForm.citizenPhone}
+                    onChange={(e) => setManualForm((p) => ({ ...p, citizenPhone: e.target.value }))}
+                    placeholder="Caller's phone number"
+                    className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Emergency Description
+                </label>
+                <textarea
+                  value={manualForm.description}
+                  onChange={(e) => setManualForm((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="Describe the emergency situation..."
+                  rows={3}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent resize-none"
+                />
+              </div>
+
+              {/* Priority */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Priority Level
+                </label>
+                <select
+                  value={manualForm.priority}
+                  onChange={(e) => setManualForm((p) => ({ ...p, priority: e.target.value }))}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent bg-white"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+
+              {/* Patient Location */}
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                  Patient Location <span className="text-red-500">*</span>
+                </label>
+
+                {/* Address search */}
+                <div className="flex gap-2 mb-3">
+                  <div className="relative flex-1">
+                    <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={addressQuery}
+                      onChange={(e) => setAddressQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePatientAddressSearch())}
+                      placeholder="Type patient's address…"
+                      className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePatientAddressSearch}
+                    disabled={searchingAddress}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2.5 rounded-lg transition-colors disabled:opacity-60 whitespace-nowrap"
+                  >
+                    {searchingAddress ? (
+                      <RefreshCw size={12} className="animate-spin" />
+                    ) : (
+                      <MapPin size={12} />
+                    )}
+                    {searchingAddress ? 'Searching…' : 'Find Location'}
+                  </button>
+                </div>
+
+                {/* Coordinates (auto-filled or manual) */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <input
+                      type="number"
+                      step="any"
+                      value={manualForm.latitude}
+                      onChange={(e) => setManualForm((p) => ({ ...p, latitude: e.target.value }))}
+                      placeholder="Latitude"
+                      required
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent font-mono"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1 ml-1">Latitude</p>
+                  </div>
+                  <div>
+                    <input
+                      type="number"
+                      step="any"
+                      value={manualForm.longitude}
+                      onChange={(e) => setManualForm((p) => ({ ...p, longitude: e.target.value }))}
+                      placeholder="Longitude"
+                      required
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent font-mono"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1 ml-1">Longitude</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1.5">Search by patient's address or enter coordinates directly.</p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowManualModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={manualLoading}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-red-100 disabled:opacity-70"
+                >
+                  {manualLoading ? (
+                    <>
+                      <RefreshCw size={15} className="animate-spin" />
+                      Creating…
+                    </>
+                  ) : (
+                    <>
+                      <Siren size={15} />
+                      Create Emergency
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
