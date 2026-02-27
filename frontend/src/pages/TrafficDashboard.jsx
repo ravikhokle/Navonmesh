@@ -12,6 +12,7 @@ import {
   Navigation,
 } from 'lucide-react';
 import useTrafficStore from '../stores/trafficStore';
+import useLocationStore from '../stores/locationStore';
 import socket, { connectSocket } from '../lib/socket';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import LiveMap from '../components/common/LiveMap';
@@ -27,6 +28,8 @@ export default function TrafficDashboard() {
     addAlert,
     isLoading,
   } = useTrafficStore();
+
+  const { liveLocations, updateLocation, fetchLiveLocations } = useLocationStore();
 
   const [myLocation, setMyLocation] = useState(null);
   const watchIdRef = useRef(null);
@@ -45,6 +48,7 @@ export default function TrafficDashboard() {
   useEffect(() => {
     fetchDutyStatus();
     fetchAlerts();
+    fetchLiveLocations();
     connectSocket();
 
     socket.on('traffic-alert', (data) => {
@@ -52,10 +56,12 @@ export default function TrafficDashboard() {
       toast.warning('🚦 New emergency route alert!', { autoClose: 8000 });
     });
     socket.on('emergency-updated', () => fetchAlerts());
+    socket.on('location-update', updateLocation);
 
     return () => {
       socket.off('traffic-alert');
       socket.off('emergency-updated');
+      socket.off('location-update');
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -121,6 +127,38 @@ export default function TrafficDashboard() {
     return markers;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myLocation, JSON.stringify(pendingAlerts)]);
+
+  // ── Routes: ambulance → patient or ambulance → hospital ──
+  const mapRoutes = useMemo(() => {
+    const routes = [];
+    pendingAlerts.forEach((alert) => {
+      const ambId = alert.assignedAmbulance?._id;
+      if (!ambId) return;
+      const live = liveLocations[ambId];
+      const ambLat = live?.lat ?? alert.assignedAmbulance?.currentLocation?.coordinates?.[1];
+      const ambLng = live?.lng ?? alert.assignedAmbulance?.currentLocation?.coordinates?.[0];
+      if (ambLat == null) return;
+      const origin = { lat: ambLat, lng: ambLng };
+      if (['assigned', 'en_route'].includes(alert.status) && alert.location?.coordinates) {
+        routes.push({
+          origin,
+          destination: { lat: alert.location.coordinates[1], lng: alert.location.coordinates[0] },
+          color: '#1a73e8',
+        });
+      } else if (alert.status === 'picked_up' && alert.assignedHospital?.location?.coordinates) {
+        routes.push({
+          origin,
+          destination: {
+            lat: alert.assignedHospital.location.coordinates[1],
+            lng: alert.assignedHospital.location.coordinates[0],
+          },
+          color: '#0f9d58',
+        });
+      }
+    });
+    return routes;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(pendingAlerts), liveLocations]);
 
   if (isLoading && activeAlerts.length === 0) return <LoadingSpinner />;
 
@@ -201,6 +239,7 @@ export default function TrafficDashboard() {
         </h3>
         <LiveMap
           markers={mapMarkers}
+          routes={mapRoutes}
           height="300px"
           zoom={mapMarkers.length > 0 ? 13 : 11}
         />

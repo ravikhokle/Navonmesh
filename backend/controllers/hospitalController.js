@@ -95,8 +95,8 @@ export const acceptEmergency = async (req, res) => {
       { hospitalResponse: "accepted" },
       { new: true }
     )
-      .populate("assignedHospital", "name")
-      .populate("assignedAmbulance", "name");
+      .populate("assignedHospital", "name location city")
+      .populate("assignedAmbulance", "name currentLocation city");
 
     if (!emergency) {
       return res.status(404).json({ message: "Emergency not found" });
@@ -121,8 +121,8 @@ export const rejectEmergency = async (req, res) => {
       { hospitalResponse: "rejected" },
       { new: true }
     )
-      .populate("assignedHospital", "name")
-      .populate("assignedAmbulance", "name");
+      .populate("assignedHospital", "name location city")
+      .populate("assignedAmbulance", "name currentLocation city");
 
     if (!emergency) {
       return res.status(404).json({ message: "Emergency not found" });
@@ -154,7 +154,7 @@ export const getHospitalEmergencies = async (req, res) => {
       assignedHospital: hospital._id,
     })
       .populate("citizen", "name")
-      .populate("assignedAmbulance", "name")
+      .populate("assignedAmbulance", "name currentLocation city")
       .sort({ createdAt: -1 });
 
     res.json(emergencies);

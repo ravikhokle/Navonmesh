@@ -68,8 +68,8 @@ export const getMyTrafficEmergencies = async (req, res) => {
       assignedTraffic: req.user._id,
     })
       .populate("citizen", "name")
-      .populate("assignedAmbulance", "name")
-      .populate("assignedHospital", "name")
+      .populate("assignedAmbulance", "name currentLocation city")
+      .populate("assignedHospital", "name location city")
       .sort({ createdAt: -1 });
 
     res.json(emergencies);

@@ -19,6 +19,7 @@ import {
   Navigation,
 } from 'lucide-react';
 import useEmergencyStore from '../stores/emergencyStore';
+import useLocationStore from '../stores/locationStore';
 import socket, { connectSocket } from '../lib/socket';
 import StatusBadge from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -44,14 +45,14 @@ export default function ERSDashboard() {
     isLoading,
   } = useEmergencyStore();
 
-  // Live ambulance & traffic positions received via socket
-  const [liveLocations, setLiveLocations] = useState({});
+  const { liveLocations, updateLocation, fetchLiveLocations } = useLocationStore();
 
   useEffect(() => {
     fetchEmergencies();
     fetchAvailableAmbulances();
     fetchAvailableHospitals();
     fetchAvailableTrafficUsers();
+    fetchLiveLocations();
     connectSocket();
 
     socket.on('new-emergency', (data) => {
@@ -72,14 +73,7 @@ export default function ERSDashboard() {
     });
 
     // Real-time: live location pings from ambulance / traffic
-    socket.on('location-update', (data) => {
-      // data: { userId, role, name, lat, lng }
-      if (!data.userId) return;
-      setLiveLocations((prev) => ({
-        ...prev,
-        [data.userId]: { lat: data.lat, lng: data.lng, name: data.name, role: data.role },
-      }));
-    });
+    socket.on('location-update', updateLocation);
 
     // Real-time: when a hospital is registered or updated, refresh hospitals list
     socket.on('hospital-added', () => fetchAvailableHospitals());
@@ -156,6 +150,40 @@ export default function ERSDashboard() {
       JSON.stringify(availableAmbulances), JSON.stringify(availableTrafficUsers),
       liveLocations]);
 
+  // ── Map routes: for each active emergency show ambulance→patient or ambulance→hospital ──
+  const mapRoutes = useMemo(() => {
+    const routes = [];
+    emergencies
+      .filter((e) => !['completed', 'pending'].includes(e.status))
+      .forEach((e) => {
+        const ambId = e.assignedAmbulance?._id;
+        if (!ambId) return;
+        const live = liveLocations[ambId];
+        const aLat = live?.lat ?? e.assignedAmbulance?.currentLocation?.coordinates?.[1];
+        const aLng = live?.lng ?? e.assignedAmbulance?.currentLocation?.coordinates?.[0];
+        if (aLat == null) return;
+        const origin = { lat: aLat, lng: aLng };
+        if (['assigned', 'en_route', 'hospital_notified'].includes(e.status) && e.location?.coordinates) {
+          routes.push({
+            origin,
+            destination: { lat: e.location.coordinates[1], lng: e.location.coordinates[0] },
+            color: '#1a73e8',
+          });
+        } else if (e.status === 'picked_up' && e.assignedHospital?.location?.coordinates) {
+          routes.push({
+            origin,
+            destination: {
+              lat: e.assignedHospital.location.coordinates[1],
+              lng: e.assignedHospital.location.coordinates[0],
+            },
+            color: '#0f9d58',
+          });
+        }
+      });
+    return routes;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(emergencies), liveLocations]);
+
   const refreshAll = () => {
     fetchEmergencies();
     fetchAvailableAmbulances();
@@ -189,7 +217,7 @@ export default function ERSDashboard() {
             <RefreshCw size={14} />
           </button>
         </div>
-        <LiveMap markers={mapMarkers} height="380px" zoom={12} />
+        <LiveMap markers={mapMarkers} routes={mapRoutes} height="380px" zoom={12} />
       </div>
 
       {/* Side panels: Ambulance Drivers + Hospitals */}

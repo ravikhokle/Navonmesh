@@ -2,39 +2,47 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import {
   Truck,
-  MapPin,
-  Clock,
-  User,
-  Phone,
-  CheckCircle2,
-  ArrowRight,
-  Building2,
-  Shield,
+  ShieldCheck,
   ShieldOff,
   Navigation,
+  MapPin,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  Building2,
 } from 'lucide-react';
 import useAmbulanceStore from '../stores/ambulanceStore';
+import useLocationStore from '../stores/locationStore';
 import socket, { connectSocket } from '../lib/socket';
-import StatusBadge from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import LiveMap from '../components/common/LiveMap';
+import StatusBadge from '../components/common/StatusBadge';
+
+// Next-status map for the action button
+const STATUS_NEXT = {
+  assigned:          { next: 'en_route',          label: 'Start Route →' },
+  en_route:          { next: 'picked_up',          label: '🏥 Patient Picked Up' },
+  picked_up:         { next: 'hospital_notified',  label: '✅ Arrived at Hospital' },
+  hospital_notified: { next: 'completed',          label: 'Mark Complete' },
+};
 
 export default function AmbulanceDashboard() {
   const {
-    assignedEmergencies,
     isOnDuty,
+    assignedEmergencies,
     fetchAssignedEmergencies,
-    updateEmergencyStatus,
     toggleDuty,
+    updateEmergencyStatus,
     addAssignment,
     updateEmergency,
     isLoading,
   } = useAmbulanceStore();
 
+  const { liveLocations, updateLocation, fetchLiveLocations } = useLocationStore();
+
   const [myLocation, setMyLocation] = useState(null);
   const watchIdRef = useRef(null);
 
-  // Read auth user from localStorage for socket payloads
   const authUser = useMemo(() => {
     try {
       const raw = localStorage.getItem('emergex_user');
@@ -44,31 +52,35 @@ export default function AmbulanceDashboard() {
     }
   }, []);
 
+  // Active (non-completed) emergency — first one found
+  const activeEmergency = useMemo(
+    () => assignedEmergencies.find((e) => e.status !== 'completed') ?? null,
+    [assignedEmergencies]
+  );
+
   // ── Socket + initial data ──
   useEffect(() => {
     fetchAssignedEmergencies();
+    fetchLiveLocations();
     connectSocket();
-
-    socket.on('emergency-updated', (data) => {
-      updateEmergency(data);
-      toast.info('📍 Emergency status updated', { autoClose: 4000 });
-    });
 
     socket.on('ambulance-assigned', (data) => {
       addAssignment(data);
-      toast.success('🚨 New emergency assigned to you!', { autoClose: 8000 });
+      toast.info('🚑 New emergency assigned!', { autoClose: 8000 });
     });
+    socket.on('emergency-updated', (data) => updateEmergency(data));
+    socket.on('location-update', updateLocation);
 
     return () => {
-      socket.off('emergency-updated');
       socket.off('ambulance-assigned');
+      socket.off('emergency-updated');
+      socket.off('location-update');
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── GPS tracking: start when on duty, stop when off ──
+  // ── GPS watchPosition — start on duty, stop off duty ──
   useEffect(() => {
-    // Clear any existing watch first
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
@@ -80,8 +92,6 @@ export default function AmbulanceDashboard() {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           setMyLocation({ lat, lng });
-
-          // Broadcast live position to ERS and all connected clients
           socket.emit('update-location', {
             userId: authUser?._id ?? authUser?.id,
             role: 'ambulance',
@@ -90,7 +100,7 @@ export default function AmbulanceDashboard() {
             lng,
           });
         },
-        (err) => console.warn('Geolocation error:', err.message),
+        (err) => console.warn('Geolocation:', err.message),
         { enableHighAccuracy: true, maximumAge: 8000, timeout: 15000 }
       );
     } else {
@@ -105,233 +115,246 @@ export default function AmbulanceDashboard() {
     };
   }, [isOnDuty, authUser]);
 
-  // ── Derived state ──
-  const activeEmergency = assignedEmergencies.find(
-    (e) => e.status !== 'completed' && e.status !== 'cancelled'
-  );
-  const currentStatus = activeEmergency?.status || 'assigned';
-  const statusFlow = [
-    { key: 'en_route',  label: 'En Route',        icon: ArrowRight,  color: 'blue'   },
-    { key: 'picked_up', label: 'Picked Up',        icon: User,        color: 'purple' },
-    { key: 'completed', label: 'Reached Hospital', icon: Building2,   color: 'green'  },
-  ];
-  const currentIndex = statusFlow.findIndex((s) => s.key === currentStatus);
-
-  // ── Map markers ──
-  const mapMarkers = useMemo(() => {
+  // ── Map markers + routes based on active emergency status ──
+  const { mapMarkers, mapRoutes } = useMemo(() => {
     const markers = [];
+    const routes = [];
+
     if (myLocation) {
       markers.push({ type: 'self', lat: myLocation.lat, lng: myLocation.lng, label: 'My Location' });
     }
-    if (activeEmergency?.location?.coordinates) {
-      markers.push({
-        type: 'emergency',
-        lat: activeEmergency.location.coordinates[1],
-        lng: activeEmergency.location.coordinates[0],
-        label: `Patient: ${activeEmergency.citizenName ?? 'Unknown'}`,
-      });
+
+    if (activeEmergency) {
+      const patLat = activeEmergency.location?.coordinates?.[1];
+      const patLng = activeEmergency.location?.coordinates?.[0];
+      if (patLat != null) {
+        markers.push({
+          type: 'emergency',
+          lat: patLat,
+          lng: patLng,
+          label: `Patient: ${activeEmergency.citizenName ?? 'Unknown'}`,
+        });
+      }
+
+      const hosp = activeEmergency.assignedHospital;
+      const hospLat = hosp?.location?.coordinates?.[1];
+      const hospLng = hosp?.location?.coordinates?.[0];
+      if (hospLat != null) {
+        markers.push({ type: 'hospital', lat: hospLat, lng: hospLng, label: hosp.name ?? 'Hospital' });
+      }
+
+      // Routes — choose phase based on status
+      if (myLocation) {
+        const st = activeEmergency.status;
+        if (['assigned', 'en_route', 'hospital_notified'].includes(st) && patLat != null) {
+          routes.push({
+            origin: myLocation,
+            destination: { lat: patLat, lng: patLng },
+            color: '#1a73e8',
+          });
+        } else if (st === 'picked_up' && hospLat != null) {
+          routes.push({
+            origin: myLocation,
+            destination: { lat: hospLat, lng: hospLng },
+            color: '#0f9d58',
+          });
+        }
+      }
     }
-    return markers;
-  }, [myLocation, activeEmergency]);
+
+    return { mapMarkers: markers, mapRoutes: routes };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myLocation, activeEmergency, liveLocations]);
+
+  const completed = assignedEmergencies.filter((e) => e.status === 'completed');
+  const active    = assignedEmergencies.filter((e) => e.status !== 'completed');
 
   if (isLoading && assignedEmergencies.length === 0) return <LoadingSpinner />;
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6">
 
       {/* ── Duty Toggle ── */}
-      <div className="card">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isOnDuty ? 'bg-emerald-50' : 'bg-gray-100'}`}>
-              {isOnDuty ? <Shield size={28} className="text-emerald-600" /> : <ShieldOff size={28} className="text-gray-400" />}
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-900">{isOnDuty ? 'On Duty' : 'Off Duty'}</h3>
-              <p className="text-sm text-gray-500">
-                {isOnDuty
-                  ? myLocation
-                    ? `📡 Sharing live location`
-                    : 'Available for dispatch'
-                  : 'Not receiving assignments'}
-              </p>
-            </div>
+      <div className={`card flex flex-col sm:flex-row items-center justify-between gap-4 ${isOnDuty ? 'ring-2 ring-emerald-400' : ''}`}>
+        <div className="flex items-center gap-4">
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isOnDuty ? 'bg-emerald-50' : 'bg-gray-100'}`}>
+            {isOnDuty
+              ? <ShieldCheck size={28} className="text-emerald-600" />
+              : <ShieldOff size={28} className="text-gray-400" />}
           </div>
-          <button
-            onClick={toggleDuty}
-            className={`relative w-16 h-8 rounded-full transition-colors duration-300 cursor-pointer ${isOnDuty ? 'bg-emerald-500' : 'bg-gray-300'}`}
-          >
-            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform duration-300 ${isOnDuty ? 'translate-x-8' : 'translate-x-1'}`} />
-          </button>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Ambulance Dashboard</h2>
+            <p className={`text-sm ${isOnDuty ? 'text-emerald-600' : 'text-gray-500'}`}>
+              {isOnDuty
+                ? myLocation
+                  ? '📡 On Duty — Sharing live location'
+                  : 'On Duty — Acquiring GPS…'
+                : 'Off Duty'}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={toggleDuty}
+          className={`px-6 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${
+            isOnDuty
+              ? 'bg-red-50 text-red-600 hover:bg-red-100'
+              : 'bg-emerald-500 text-white hover:bg-emerald-600'
+          }`}
+        >
+          {isOnDuty ? 'Go Off Duty' : 'Go On Duty'}
+        </button>
+      </div>
+
+      {/* ── Stats ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="card flex items-center gap-4">
+          <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
+            <AlertTriangle size={22} className="text-red-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{active.length}</p>
+            <p className="text-xs text-gray-500">Active</p>
+          </div>
+        </div>
+        <div className="card flex items-center gap-4">
+          <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
+            <CheckCircle2 size={22} className="text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{completed.length}</p>
+            <p className="text-xs text-gray-500">Completed</p>
+          </div>
+        </div>
+        <div className="card flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+            <Truck size={22} className="text-blue-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{assignedEmergencies.length}</p>
+            <p className="text-xs text-gray-500">Total Assigned</p>
+          </div>
         </div>
       </div>
 
-      {/* ── Live Map ── */}
-      <div className="card">
-        <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
-          <Navigation size={16} className="text-blue-600" />
-          Live Map
-          {myLocation && (
-            <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-md">
-              <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-ping inline-block" />
-              GPS Active
-            </span>
-          )}
-        </h3>
-        <LiveMap
-          markers={mapMarkers}
-          height="300px"
-          zoom={mapMarkers.length > 0 ? 14 : 11}
-        />
-        {!isOnDuty && (
-          <p className="text-xs text-gray-400 mt-2 text-center">
-            Go on duty to start sharing your live location
-          </p>
-        )}
-      </div>
-
-      {/* ── Ambulance Status ── */}
-      <div className="card text-center">
-        <div className="w-20 h-20 mx-auto bg-red-50 rounded-2xl flex items-center justify-center mb-4">
-          <Truck size={36} className="text-red-600" />
-        </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">Ambulance Status</h3>
-        <StatusBadge status={currentStatus} className="text-sm px-4 py-1.5" />
-      </div>
-
-      {/* ── Status Flow (only when active emergency) ── */}
+      {/* ── Live Navigation Map ── */}
       {activeEmergency && (
         <div className="card">
-          <h4 className="text-lg font-semibold text-gray-900 mb-6">Update Status</h4>
-          <div className="flex flex-col sm:flex-row gap-3">
-            {statusFlow.map(({ key, label, icon: StatusIcon, color }, idx) => {
-              const isActive = currentStatus === key;
-              const isPast   = idx < currentIndex;
-              const isNext   = idx === currentIndex + 1 || (currentIndex === -1 && idx === 0);
-              const disabled = !isNext && !isActive;
-
-              const colors = {
-                blue:   'bg-blue-600 hover:bg-blue-700',
-                purple: 'bg-purple-600 hover:bg-purple-700',
-                green:  'bg-emerald-600 hover:bg-emerald-700',
-              };
-
-              return (
-                <button
-                  key={key}
-                  onClick={() => updateEmergencyStatus(activeEmergency._id, key)}
-                  disabled={disabled}
-                  className={`flex-1 flex items-center justify-center gap-2 py-4 px-4 rounded-xl font-semibold text-sm transition-all cursor-pointer ${
-                    isActive
-                      ? `${colors[color]} text-white shadow-lg`
-                      : isPast
-                      ? 'bg-gray-100 text-gray-400'
-                      : isNext
-                      ? `${colors[color]} text-white opacity-90 hover:opacity-100`
-                      : 'bg-gray-50 text-gray-300 cursor-not-allowed'
-                  }`}
-                >
-                  {isPast ? <CheckCircle2 size={18} /> : <StatusIcon size={18} />}
-                  {label}
-                </button>
-              );
-            })}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <Navigation size={16} className="text-blue-600" />
+              Live Navigation
+              {myLocation && (
+                <span className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-md">
+                  <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-ping inline-block" />
+                  GPS Active
+                </span>
+              )}
+            </h3>
+            <span className="text-xs text-gray-400">
+              {activeEmergency.status === 'picked_up'
+                ? '🟢 Route to Hospital'
+                : '🔵 Route to Patient'}
+            </span>
           </div>
+          <LiveMap markers={mapMarkers} routes={mapRoutes} height="320px" zoom={13} />
+          {!isOnDuty && (
+            <p className="text-xs text-gray-400 mt-2 text-center">
+              Go on duty to start live GPS sharing
+            </p>
+          )}
         </div>
       )}
 
-      {/* ── Emergency Details ── */}
+      {/* ── Active Emergency Card ── */}
       {activeEmergency ? (
-        <div className="card">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4">Assigned Emergency</h4>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-4 bg-red-50 rounded-xl">
-              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <User size={18} className="text-red-600" />
+        <div className="card border-2 border-red-200 bg-red-50/20">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                <AlertTriangle size={22} className="text-red-600" />
               </div>
               <div>
-                <p className="font-medium text-gray-900">{activeEmergency.citizenName || 'Patient'}</p>
+                <p className="font-bold text-gray-900 text-lg">
+                  {activeEmergency.citizenName ?? 'Unknown Patient'}
+                </p>
                 {activeEmergency.citizenPhone && (
-                  <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                    <Phone size={12} />
-                    {activeEmergency.citizenPhone}
-                  </p>
+                  <p className="text-sm text-gray-500">{activeEmergency.citizenPhone}</p>
                 )}
               </div>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                  <MapPin size={12} /> Location
-                </p>
-                <p className="text-sm font-medium text-gray-900">
-                  {activeEmergency.location?.coordinates
-                    ? `${activeEmergency.location.coordinates[1]?.toFixed(4)}, ${activeEmergency.location.coordinates[0]?.toFixed(4)}`
-                    : 'N/A'}
-                </p>
-              </div>
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                  <Clock size={12} /> Time
-                </p>
-                <p className="text-sm font-medium text-gray-900">
-                  {activeEmergency.createdAt
-                    ? new Date(activeEmergency.createdAt).toLocaleTimeString()
-                    : 'N/A'}
-                </p>
-              </div>
-            </div>
-
-            {activeEmergency.assignedHospital && (
-              <div className="p-4 bg-green-50 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1 flex items-center gap-1">
-                  <Building2 size={12} /> Destination Hospital
-                </p>
-                <p className="text-sm font-medium text-gray-900">
-                  {activeEmergency.assignedHospital.name || 'Assigned'}
-                </p>
-              </div>
-            )}
-
-            {activeEmergency.description && (
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <p className="text-xs text-gray-500 mb-1">Description</p>
-                <p className="text-sm text-gray-700">{activeEmergency.description}</p>
-              </div>
-            )}
+            <StatusBadge status={activeEmergency.status} />
           </div>
+
+          {activeEmergency.description && (
+            <p className="text-sm text-gray-600 mb-3">{activeEmergency.description}</p>
+          )}
+
+          {activeEmergency.location?.coordinates && (
+            <p className="text-xs text-gray-500 flex items-center gap-1 mb-1">
+              <MapPin size={12} />
+              Patient: {activeEmergency.location.coordinates[1].toFixed(5)},{' '}
+              {activeEmergency.location.coordinates[0].toFixed(5)}
+            </p>
+          )}
+
+          {activeEmergency.assignedHospital && (
+            <p className="text-xs text-gray-500 flex items-center gap-1 mb-4">
+              <Building2 size={12} />
+              Hospital: {activeEmergency.assignedHospital.name}
+              {activeEmergency.assignedHospital.city
+                ? `, ${activeEmergency.assignedHospital.city}`
+                : ''}
+            </p>
+          )}
+
+          {STATUS_NEXT[activeEmergency.status] && (
+            <button
+              onClick={() =>
+                updateEmergencyStatus(
+                  activeEmergency._id,
+                  STATUS_NEXT[activeEmergency.status].next
+                )
+              }
+              className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-3"
+            >
+              {STATUS_NEXT[activeEmergency.status].label}
+            </button>
+          )}
         </div>
       ) : (
         <div className="card text-center py-12">
-          <Truck size={48} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500 font-medium">No emergency assigned</p>
-          <p className="text-sm text-gray-400 mt-1">Waiting for dispatch…</p>
+          <Truck size={48} className="mx-auto text-gray-200 mb-4" />
+          <p className="text-gray-500">No active emergencies</p>
+          <p className="text-xs text-gray-400 mt-1">Go on duty to receive assignments</p>
         </div>
       )}
 
-      {/* ── Completed Emergencies ── */}
-      {assignedEmergencies.filter((e) => e.status === 'completed').length > 0 && (
+      {/* ── Completed Runs ── */}
+      {completed.length > 0 && (
         <div className="card">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4">Completed</h4>
-          <div className="space-y-3">
-            {assignedEmergencies
-              .filter((e) => e.status === 'completed')
-              .map((e) => (
-                <div key={e._id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                  <CheckCircle2 size={18} className="text-emerald-500" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{e.citizenName}</p>
-                    <p className="text-xs text-gray-500">
-                      {e.createdAt ? new Date(e.createdAt).toLocaleString() : ''}
-                    </p>
-                  </div>
-                  <StatusBadge status="completed" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-emerald-500" />
+            Completed Runs
+          </h3>
+          <div className="space-y-2">
+            {completed.map((e, idx) => (
+              <div
+                key={e._id ?? idx}
+                className="flex items-center justify-between border border-gray-100 rounded-lg p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-emerald-500" />
+                  <span className="text-sm text-gray-700">{e.citizenName ?? 'Patient'}</span>
                 </div>
-              ))}
+                <span className="text-xs text-gray-400">
+                  {e.updatedAt ? new Date(e.updatedAt).toLocaleTimeString() : 'Done'}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
+
     </div>
   );
 }

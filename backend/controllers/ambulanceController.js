@@ -21,7 +21,7 @@ export const updateEmergencyStatus = async (req, res) => {
       { new: true }
     )
       .populate("citizen", "name")
-      .populate("assignedHospital", "name phone");
+      .populate("assignedHospital", "name location city phone");
 
     if (!emergency) {
       return res.status(404).json({ message: "Emergency not found" });
@@ -63,7 +63,7 @@ export const getMyAssignedEmergencies = async (req, res) => {
       assignedAmbulance: req.user._id,
     })
       .populate("citizen", "name")
-      .populate("assignedHospital", "name")
+      .populate("assignedHospital", "name location city")
       .sort({ createdAt: -1 });
 
     res.json(emergencies);

@@ -10,8 +10,8 @@ export const getEmergencies = async (req, res) => {
   try {
     const emergencies = await Emergency.find()
       .populate("citizen", "name email")
-      .populate("assignedAmbulance", "name")
-      .populate("assignedHospital", "name")
+      .populate("assignedAmbulance", "name currentLocation city")
+      .populate("assignedHospital", "name location city phone")
       .sort({ createdAt: -1 });
 
     res.json(emergencies);
@@ -42,8 +42,8 @@ export const assignAmbulance = async (req, res) => {
       },
       { new: true }
     )
-      .populate("assignedAmbulance", "name")
-      .populate("assignedHospital", "name");
+      .populate("assignedAmbulance", "name currentLocation city")
+      .populate("assignedHospital", "name location city phone");
 
     if (!emergency) {
       return res.status(404).json({ message: "Emergency not found" });
@@ -99,8 +99,8 @@ export const notifyHospital = async (req, res) => {
       },
       { new: true }
     )
-      .populate("assignedHospital", "name phone")
-      .populate("assignedAmbulance", "name");
+      .populate("assignedHospital", "name location city phone")
+      .populate("assignedAmbulance", "name currentLocation city");
 
     if (!emergency) {
       return res.status(404).json({ message: "Emergency not found" });
@@ -192,8 +192,8 @@ export const sendAlertAll = async (req, res) => {
       updateFields,
       { new: true }
     )
-      .populate("assignedAmbulance", "name")
-      .populate("assignedHospital", "name");
+      .populate("assignedAmbulance", "name currentLocation city")
+      .populate("assignedHospital", "name location city phone");
 
     if (!emergency) {
       return res.status(404).json({ message: "Emergency not found" });

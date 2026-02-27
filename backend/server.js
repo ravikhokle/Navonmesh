@@ -31,6 +31,11 @@ const io = new Server(httpServer, {
 // Make io accessible in controllers via req.app.get("io")
 app.set("io", io);
 
+// Module-scope live-location cache: { [userId]: { lat, lng, role, name, timestamp } }
+// Updated in real-time whenever any ambulance/traffic/citizen emits "update-location"
+const liveLocations = {};
+app.set("liveLocations", liveLocations);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -48,6 +53,16 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "Emergex API is running" });
 });
 
+// Public live-locations endpoint — no auth needed (citizens need ambulance position)
+// Returns locations updated within the last 5 minutes
+app.get("/api/live-locations", (req, res) => {
+  const now = Date.now();
+  const fresh = Object.fromEntries(
+    Object.entries(liveLocations).filter(([, v]) => now - v.timestamp < 5 * 60 * 1000)
+  );
+  res.json(fresh);
+});
+
 // Socket.io connection
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
@@ -58,17 +73,20 @@ io.on("connection", (socket) => {
     console.log(`Socket ${socket.id} joined room: ${role}`);
   });
 
-  // Join emergency-specific room
+  // Join emergency room for targeted updates (ambulance driver, citizen, hospital)
   socket.on("join-emergency", (emergencyId) => {
     socket.join(`emergency-${emergencyId}`);
     console.log(`Socket ${socket.id} joined emergency: ${emergencyId}`);
   });
 
-  // Real-time location ping from ambulance / traffic officers
+  // Real-time location ping from ambulance / traffic officers / citizens
   // data: { userId, role, name, lat, lng }
   socket.on("update-location", (data) => {
-    // Broadcast to all OTHER clients so ERS / hospitals can see live movement
-    socket.broadcast.emit("location-update", data);
+    if (data.userId) {
+      liveLocations[data.userId] = { ...data, timestamp: Date.now() };
+    }
+    // Broadcast to ALL clients (io.emit) so even ERS connected before ambulance gets updates
+    io.emit("location-update", data);
   });
 
   socket.on("disconnect", () => {

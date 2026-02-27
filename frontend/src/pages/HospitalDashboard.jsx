@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { toast } from 'react-toastify';
 import {
   Building2,
   Bed,
@@ -14,6 +15,7 @@ import {
   Phone,
 } from 'lucide-react';
 import useHospitalStore from '../stores/hospitalStore';
+import useLocationStore from '../stores/locationStore';
 import socket, { connectSocket } from '../lib/socket';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import LiveMap from '../components/common/LiveMap';
@@ -32,6 +34,8 @@ export default function HospitalDashboard() {
     isLoading,
   } = useHospitalStore();
 
+  const { liveLocations, updateLocation, fetchLiveLocations } = useLocationStore();
+
   const [bedInput, setBedInput] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
   const [regForm, setRegForm] = useState({
@@ -44,11 +48,9 @@ export default function HospitalDashboard() {
   });
 
   useEffect(() => {
-    fetchMyHospital().then(() => {
-      // If no hospital is linked fetchMyHospital will set hospital to null
-      // We'll check after a short delay
-    });
+    fetchMyHospital();
     fetchIncomingPatients();
+    fetchLiveLocations();
     connectSocket();
 
     socket.on('emergency-updated', () => fetchIncomingPatients());
@@ -56,10 +58,12 @@ export default function HospitalDashboard() {
       addIncomingPatient(data);
       toast.info('🏥 New incoming patient assigned!', { autoClose: 7000 });
     });
+    socket.on('location-update', updateLocation);
 
     return () => {
       socket.off('emergency-updated');
       socket.off('incoming-patient');
+      socket.off('location-update');
     };
   }, []);
 
@@ -102,8 +106,7 @@ export default function HospitalDashboard() {
   const beds = hospital?.availableBeds ?? 0;
   const displayBedInput = bedInput ?? beds;
 
-  // ── Map markers (hospital + incoming patient locations) ──
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // ── Map markers (hospital + incoming patient + ambulance locations) ──
   const mapMarkers = useMemo(() => {
     const markers = [];
     if (hospital?.location?.coordinates) {
@@ -123,10 +126,44 @@ export default function HospitalDashboard() {
           label: `Patient: ${p.citizenName ?? 'Unknown'}`,
         });
       }
+      // Show ambulance live position if available
+      const ambId = p.assignedAmbulance?._id;
+      if (ambId) {
+        const live = liveLocations[ambId];
+        const aLat = live?.lat ?? p.assignedAmbulance?.currentLocation?.coordinates?.[1];
+        const aLng = live?.lng ?? p.assignedAmbulance?.currentLocation?.coordinates?.[0];
+        if (aLat != null) {
+          markers.push({ type: 'ambulance', lat: aLat, lng: aLng, label: `Ambulance: ${p.assignedAmbulance.name ?? ''}` });
+        }
+      }
     });
     return markers;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hospital, JSON.stringify(incomingPatients)]);
+  }, [hospital, JSON.stringify(incomingPatients), liveLocations]);
+
+  // ── Routes: ambulance → hospital for picked_up status ──
+  const mapRoutes = useMemo(() => {
+    const routes = [];
+    const hospLat = hospital?.location?.coordinates?.[1];
+    const hospLng = hospital?.location?.coordinates?.[0];
+    if (hospLat == null) return routes;
+    incomingPatients.forEach((p) => {
+      if (p.status !== 'picked_up') return;
+      const ambId = p.assignedAmbulance?._id;
+      if (!ambId) return;
+      const live = liveLocations[ambId];
+      const aLat = live?.lat ?? p.assignedAmbulance?.currentLocation?.coordinates?.[1];
+      const aLng = live?.lng ?? p.assignedAmbulance?.currentLocation?.coordinates?.[0];
+      if (aLat == null) return;
+      routes.push({
+        origin: { lat: aLat, lng: aLng },
+        destination: { lat: hospLat, lng: hospLng },
+        color: '#0f9d58',
+      });
+    });
+    return routes;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hospital, JSON.stringify(incomingPatients), liveLocations]);
 
   if (isLoading && !hospital && !showRegister) return <LoadingSpinner />;
 
@@ -283,7 +320,7 @@ export default function HospitalDashboard() {
             <Building2 size={16} className="text-emerald-600" />
             Hospital &amp; Patient Map
           </h3>
-          <LiveMap markers={mapMarkers} height="280px" zoom={13} />
+          <LiveMap markers={mapMarkers} routes={mapRoutes} height="280px" zoom={13} />
         </div>
       )}
 
