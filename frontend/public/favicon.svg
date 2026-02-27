@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Red rounded background -->
+  <rect width="64" height="64" rx="14" fill="#ef4444"/>
+
+  <!-- White shield outer -->
+  <path d="M32 12
+           C40 18 48 20 52 20
+           V34
+           C52 46 42 54 32 58
+           C22 54 12 46 12 34
+           V20
+           C16 20 24 18 32 12Z"
+        fill="white"/>
+
+  <!-- Inner red shield -->
+  <path d="M32 18
+           C38 22 44 24 48 24
+           V34
+           C48 42 40 48 32 52
+           C24 48 16 42 16 34
+           V24
+           C20 24 26 22 32 18Z"
+        fill="#dc2626"/>
+</svg>
