@@ -65,11 +65,12 @@ const emergencySchema = new mongoose.Schema(
       ref: "Hospital",
       default: null,
     },
-    assignedTraffic: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
-    },
+    assignedTraffic: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     hospitalResponse: {
       type: String,
       enum: ["pending", "accepted", "rejected"],

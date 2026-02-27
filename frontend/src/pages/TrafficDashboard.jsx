@@ -54,9 +54,12 @@ export default function TrafficDashboard() {
     connectSocket();
 
     socket.on('traffic-alert', (data) => {
-      addAlert(data);
-      playAlertSound();
-      toast.warning('🚦 New emergency route alert!', { autoClose: 8000 });
+      // Only respond if this alert is for the current user
+      if (data.trafficId === authUser?._id) {
+        fetchAlerts();
+        playAlertSound();
+        toast.warning('🚦 New emergency route alert!', { autoClose: 8000 });
+      }
     });
     socket.on('emergency-updated', () => fetchAlerts());
 

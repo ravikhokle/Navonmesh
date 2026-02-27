@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import {
   AlertTriangle,
@@ -40,7 +40,6 @@ export default function ERSDashboard() {
     fetchAvailableHospitals,
     fetchAvailableTrafficUsers,
     assignAmbulance,
-    sendTrafficAlert,
     sendHospitalAlert,
     setPriority,
     sendAlertAll,
@@ -445,10 +444,8 @@ export default function ERSDashboard() {
                 emergency={emergency}
                 ambulances={availableAmbulances}
                 hospitals={availableHospitals}
-                trafficUsers={availableTrafficUsers}
                 onAssignAmbulance={(ambId) => assignAmbulance(emergency._id, ambId)}
                 onHospitalAlert={(hosId) => sendHospitalAlert(emergency._id, hosId)}
-                onTrafficAlert={(trafId) => sendTrafficAlert(emergency._id, trafId)}
                 onSetPriority={(priority) => setPriority(emergency._id, priority)}
                 onSendAlertAll={(payload) => sendAlertAll(emergency._id, payload)}
               />
@@ -689,10 +686,8 @@ function EmergencyCard({
   emergency,
   ambulances,
   hospitals,
-  trafficUsers,
   onAssignAmbulance,
   onHospitalAlert,
-  onTrafficAlert,
   onSetPriority,
   onSendAlertAll,
 }) {
@@ -701,9 +696,6 @@ function EmergencyCard({
   );
   const [selectedHospital, setSelectedHospital] = useState(
     emergency.assignedHospital?._id || ''
-  );
-  const [selectedTraffic, setSelectedTraffic] = useState(
-    emergency.assignedTraffic?._id || emergency.assignedTraffic || ''
   );
   const [selectedPriority, setSelectedPriority] = useState(emergency.priority || 'medium');
   const [sending, setSending] = useState(false);
@@ -723,12 +715,11 @@ function EmergencyCard({
   };
 
   const handleSendAlert = async () => {
-    if (!selectedAmbulance && !selectedHospital && !selectedTraffic) return;
+    if (!selectedAmbulance && !selectedHospital) return;
     setSending(true);
     await onSendAlertAll({
       ambulanceId: selectedAmbulance || null,
       hospitalId: selectedHospital || null,
-      trafficId: selectedTraffic || null,
       priority: selectedPriority,
     });
     setSending(false);
@@ -826,10 +817,10 @@ function EmergencyCard({
                 Hospital: {emergency.assignedHospital.name || 'Notified'}
               </span>
             )}
-            {emergency.assignedTraffic && (
+            {emergency.assignedTraffic?.length > 0 && (
               <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-medium">
                 <TrafficCone size={12} />
-                Traffic: Notified
+                Traffic: {emergency.assignedTraffic.length} officer(s) auto-assigned
               </span>
             )}
           </div>
@@ -903,34 +894,22 @@ function EmergencyCard({
                 ))}
               </select>
             </div>
+          </div>
 
-            {/* Traffic Officer */}
-            <div>
-              <label className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1">
-                <TrafficCone size={10} />
-                Traffic Officer
-              </label>
-              <select
-                value={selectedTraffic}
-                onChange={(e) => setSelectedTraffic(e.target.value)}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white cursor-pointer"
-              >
-                <option value="">— Select Officer —</option>
-                {trafficUsers.map((t) => (
-                  <option key={t._id} value={t._id}>
-                    {t.name} {t.city ? `(${t.city})` : ''} — On Duty
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Auto-assign note */}
+          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <TrafficCone size={14} className="text-amber-600 flex-shrink-0" />
+            <p className="text-xs text-amber-700">
+              Traffic police are <strong>auto-assigned</strong> based on ambulance proximity — no manual selection needed.
+            </p>
           </div>
 
           {/* Send Alert Button */}
           <button
             onClick={handleSendAlert}
-            disabled={sending || (!selectedAmbulance && !selectedHospital && !selectedTraffic)}
+            disabled={sending || (!selectedAmbulance && !selectedHospital)}
             className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              !selectedAmbulance && !selectedHospital && !selectedTraffic
+              !selectedAmbulance && !selectedHospital
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200'
             }`}

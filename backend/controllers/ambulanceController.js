@@ -1,5 +1,6 @@
 import Emergency from "../models/Emergency.js";
 import { sendWhatsAppMessage } from "../utils/sendWhatsApp.js";
+import { autoAssignNearbyTraffic } from "../utils/autoTraffic.js";
 
 // @desc    Update ambulance/emergency status (en_route, picked_up, completed)
 // @route   PUT /api/ambulance/emergency/:id/status
@@ -49,6 +50,15 @@ export const updateEmergencyStatus = async (req, res) => {
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
     io.emit("status-changed", { emergency, status });
+
+    // When ambulance starts moving, auto-assign the nearest traffic officer
+    if (status === "en_route") {
+      const liveLocations = req.app.get("liveLocations");
+      const ambLoc = liveLocations[req.user._id.toString()];
+      if (ambLoc?.lat) {
+        autoAssignNearbyTraffic(req.user._id, ambLoc.lat, ambLoc.lng, io, liveLocations, true);
+      }
+    }
 
     res.json(emergency);
   } catch (error) {

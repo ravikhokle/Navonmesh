@@ -1,5 +1,6 @@
 import Emergency from "../models/Emergency.js";
 import Hospital from "../models/Hospital.js";
+import { parseVoiceWithAI } from "../utils/parseVoiceAI.js";
 
 // @desc    Create a new emergency request
 // @route   POST /api/citizen/emergency
@@ -74,5 +75,26 @@ export const getMyEmergencies = async (req, res) => {
     res.json(emergencies);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Parse voice transcript into name, phone, description using Cohere AI
+// @route   POST /api/citizen/parse-voice
+// @access  Public (citizen SOS page has no login)
+export const parseVoice = async (req, res) => {
+  try {
+    const { transcript, language } = req.body;
+
+    if (!transcript || typeof transcript !== "string" || transcript.trim().length < 3) {
+      return res
+        .status(400)
+        .json({ message: "Transcript is required (min 3 characters)" });
+    }
+
+    const parsed = await parseVoiceWithAI(transcript.trim(), language || "en-IN");
+    res.json(parsed);
+  } catch (error) {
+    console.error("Voice parse error:", error.message);
+    res.status(500).json({ message: "AI parsing failed: " + error.message });
   }
 };

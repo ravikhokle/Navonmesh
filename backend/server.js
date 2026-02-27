@@ -4,6 +4,7 @@ import cors from "cors";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import connectDB from "./config/db.js";
+import { autoAssignNearbyTraffic } from "./utils/autoTraffic.js";
 
 // Route imports
 import authRoutes from "./routes/authRoutes.js";
@@ -35,6 +36,9 @@ app.set("io", io);
 // Updated in real-time whenever any ambulance/traffic/citizen emits "update-location"
 const liveLocations = {};
 app.set("liveLocations", liveLocations);
+
+// Throttle map: { [ambulanceUserId]: lastCheckTimestamp }
+const lastAutoAssignCheck = {};
 
 // Middleware
 app.use(cors());
@@ -87,6 +91,15 @@ io.on("connection", (socket) => {
     }
     // Broadcast to ALL clients (io.emit) so even ERS connected before ambulance gets updates
     io.emit("location-update", data);
+
+    // Auto-assign nearby traffic officers when an ambulance moves (throttled to every 10 s)
+    if (data.role === "ambulance" && data.lat && data.lng && data.userId) {
+      const now = Date.now();
+      if (!lastAutoAssignCheck[data.userId] || now - lastAutoAssignCheck[data.userId] > 10000) {
+        lastAutoAssignCheck[data.userId] = now;
+        autoAssignNearbyTraffic(data.userId, data.lat, data.lng, io, liveLocations, false);
+      }
+    }
   });
 
   // Remove a user's location from the shared cache and notify all clients

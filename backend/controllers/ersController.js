@@ -171,7 +171,7 @@ export const notifyTraffic = async (req, res) => {
 
     const emergency = await Emergency.findByIdAndUpdate(
       req.params.id,
-      { assignedTraffic: trafficId },
+      { $addToSet: { assignedTraffic: trafficId } },
       { new: true }
     );
 
@@ -194,19 +194,13 @@ export const notifyTraffic = async (req, res) => {
 // @access  Private (ers)
 export const sendAlertAll = async (req, res) => {
   try {
-    const { ambulanceId, hospitalId, trafficId, priority } = req.body;
+    const { ambulanceId, hospitalId, priority } = req.body;
 
-    // Verify on-duty status for ambulance and traffic before assigning
+    // Verify on-duty status for ambulance before assigning
     if (ambulanceId) {
       const driver = await User.findById(ambulanceId);
       if (!driver || !driver.isOnDuty) {
         return res.status(400).json({ message: "Ambulance driver is not on duty" });
-      }
-    }
-    if (trafficId) {
-      const officer = await User.findById(trafficId);
-      if (!officer || !officer.isOnDuty) {
-        return res.status(400).json({ message: "Traffic officer is not on duty" });
       }
     }
 
@@ -219,7 +213,6 @@ export const sendAlertAll = async (req, res) => {
       updateFields.assignedHospital = hospitalId;
       if (!ambulanceId) updateFields.status = "hospital_notified";
     }
-    if (trafficId) updateFields.assignedTraffic = trafficId;
     if (priority) updateFields.priority = priority;
 
     const emergency = await Emergency.findByIdAndUpdate(
@@ -242,9 +235,6 @@ export const sendAlertAll = async (req, res) => {
     }
     if (hospitalId) {
       io.emit("incoming-patient", emergency);
-    }
-    if (trafficId) {
-      io.emit("traffic-alert", { emergencyId: emergency._id, trafficId });
     }
 
     // WhatsApp to hospital if assigned
