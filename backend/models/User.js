@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 
+const ALLOWED_ROLES = ["ers", "ambulance", "hospital", "traffic"];
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -13,19 +15,24 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"],
     },
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: 6,
+      minlength: [6, "Password must be at least 6 characters"],
     },
     role: {
       type: String,
-      enum: ["citizen", "ers", "ambulance", "hospital", "traffic"],
-      default: "citizen",
+      enum: {
+        values: ALLOWED_ROLES,
+        message: "Role must be one of: ers, ambulance, hospital, traffic",
+      },
+      required: [true, "Role is required"],
     },
     city: {
       type: String,
+      required: [true, "City is required"],
       trim: true,
     },
     isOnDuty: {
@@ -36,5 +43,6 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+export { ALLOWED_ROLES };
 const User = mongoose.model("User", userSchema);
 export default User;
