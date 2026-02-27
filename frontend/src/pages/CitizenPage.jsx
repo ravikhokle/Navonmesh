@@ -77,7 +77,7 @@ export default function CitizenPage() {
   const shareWatchRef = useRef(null);
 
   const { createSOS, isLoading } = useEmergencyStore();
-  const { liveLocations, updateLocation, fetchLiveLocations } = useLocationStore();
+  const { liveLocations, updateLocation, fetchLiveLocations, removeLocation } = useLocationStore();
 
   // ── Get own location ──────────────────────────────────────────────────────
   const getLocation = useCallback(() => {
@@ -130,12 +130,16 @@ export default function CitizenPage() {
       });
     };
 
+    const handleLocationCleared = (data) => removeLocation(data?.userId);
+
     socket.on('location-update', handleLocationUpdate);
     socket.on('emergency-updated', handleEmergencyUpdated);
+    socket.on('location-cleared', handleLocationCleared);
 
     return () => {
       socket.off('location-update', handleLocationUpdate);
       socket.off('emergency-updated', handleEmergencyUpdated);
+      socket.off('location-cleared', handleLocationCleared);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

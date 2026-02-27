@@ -45,7 +45,7 @@ export default function ERSDashboard() {
     isLoading,
   } = useEmergencyStore();
 
-  const { liveLocations, updateLocation, fetchLiveLocations } = useLocationStore();
+  const { liveLocations, updateLocation, fetchLiveLocations, removeLocation } = useLocationStore();
 
   useEffect(() => {
     fetchEmergencies();
@@ -74,6 +74,7 @@ export default function ERSDashboard() {
 
     // Real-time: live location pings from ambulance / traffic
     socket.on('location-update', updateLocation);
+    socket.on('location-cleared', (data) => removeLocation(data?.userId));
 
     // Real-time: when a hospital is registered or updated, refresh hospitals list
     socket.on('hospital-added', () => fetchAvailableHospitals());
@@ -86,6 +87,7 @@ export default function ERSDashboard() {
       socket.off('hospital-added');
       socket.off('hospital-updated');
       socket.off('location-update');
+      socket.off('location-cleared');
     };
   }, []);
 
@@ -124,23 +126,19 @@ export default function ERSDashboard() {
       }
     });
 
-    // Ambulances (blue) — live socket position wins over DB position
+    // Ambulances (blue) — only show if actively sharing live position
     availableAmbulances.forEach((a) => {
       const live = liveLocations[a._id];
-      const lat = live?.lat ?? (a.currentLocation?.coordinates?.[1]);
-      const lng = live?.lng ?? (a.currentLocation?.coordinates?.[0]);
-      if (lat != null && lng != null) {
-        markers.push({ type: 'ambulance', lat, lng, label: `${a.name} (Ambulance)` });
+      if (live?.lat != null) {
+        markers.push({ type: 'ambulance', lat: live.lat, lng: live.lng, label: `${a.name} (Ambulance)` });
       }
     });
 
-    // Traffic officers (amber) — live socket position wins over DB position
+    // Traffic officers (amber) — live position only
     availableTrafficUsers.forEach((t) => {
       const live = liveLocations[t._id];
-      const lat = live?.lat ?? (t.currentLocation?.coordinates?.[1]);
-      const lng = live?.lng ?? (t.currentLocation?.coordinates?.[0]);
-      if (lat != null && lng != null) {
-        markers.push({ type: 'traffic', lat, lng, label: `${t.name} (Traffic Officer)` });
+      if (live?.lat != null) {
+        markers.push({ type: 'traffic', lat: live.lat, lng: live.lng, label: `${t.name} (Traffic Officer)` });
       }
     });
 
@@ -153,17 +151,16 @@ export default function ERSDashboard() {
   // ── Map routes: for each active emergency show ambulance→patient or ambulance→hospital ──
   const mapRoutes = useMemo(() => {
     const routes = [];
+    // Only draw routes for in-progress emergencies where ambulance is still moving
     emergencies
-      .filter((e) => !['completed', 'pending'].includes(e.status))
+      .filter((e) => ['assigned', 'en_route', 'picked_up'].includes(e.status))
       .forEach((e) => {
         const ambId = e.assignedAmbulance?._id;
         if (!ambId) return;
-        const live = liveLocations[ambId];
-        const aLat = live?.lat ?? e.assignedAmbulance?.currentLocation?.coordinates?.[1];
-        const aLng = live?.lng ?? e.assignedAmbulance?.currentLocation?.coordinates?.[0];
-        if (aLat == null) return;
-        const origin = { lat: aLat, lng: aLng };
-        if (['assigned', 'en_route', 'hospital_notified'].includes(e.status) && e.location?.coordinates) {
+        const live = liveLocations[ambId]; // live only — no DB fallback
+        if (!live?.lat) return;
+        const origin = { lat: live.lat, lng: live.lng };
+        if (['assigned', 'en_route'].includes(e.status) && e.location?.coordinates) {
           routes.push({
             origin,
             destination: { lat: e.location.coordinates[1], lng: e.location.coordinates[0] },

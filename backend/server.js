@@ -89,6 +89,15 @@ io.on("connection", (socket) => {
     io.emit("location-update", data);
   });
 
+  // Remove a user's location from the shared cache and notify all clients
+  // Emitted by ambulance driver when emergency reaches hospital_notified / completed
+  socket.on("clear-location", (data) => {
+    if (data?.userId) {
+      delete liveLocations[data.userId];
+    }
+    io.emit("location-cleared", { userId: data?.userId });
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
   });

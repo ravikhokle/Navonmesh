@@ -29,7 +29,7 @@ export default function TrafficDashboard() {
     isLoading,
   } = useTrafficStore();
 
-  const { liveLocations, updateLocation, fetchLiveLocations } = useLocationStore();
+  const { liveLocations, updateLocation, fetchLiveLocations, removeLocation } = useLocationStore();
 
   const [myLocation, setMyLocation] = useState(null);
   const watchIdRef = useRef(null);
@@ -57,11 +57,13 @@ export default function TrafficDashboard() {
     });
     socket.on('emergency-updated', () => fetchAlerts());
     socket.on('location-update', updateLocation);
+    socket.on('location-cleared', (data) => removeLocation(data?.userId));
 
     return () => {
       socket.off('traffic-alert');
       socket.off('emergency-updated');
       socket.off('location-update');
+      socket.off('location-cleared');
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -134,11 +136,9 @@ export default function TrafficDashboard() {
     pendingAlerts.forEach((alert) => {
       const ambId = alert.assignedAmbulance?._id;
       if (!ambId) return;
-      const live = liveLocations[ambId];
-      const ambLat = live?.lat ?? alert.assignedAmbulance?.currentLocation?.coordinates?.[1];
-      const ambLng = live?.lng ?? alert.assignedAmbulance?.currentLocation?.coordinates?.[0];
-      if (ambLat == null) return;
-      const origin = { lat: ambLat, lng: ambLng };
+      const live = liveLocations[ambId]; // live only — no DB fallback
+      if (!live?.lat) return;
+      const origin = { lat: live.lat, lng: live.lng };
       if (['assigned', 'en_route'].includes(alert.status) && alert.location?.coordinates) {
         routes.push({
           origin,

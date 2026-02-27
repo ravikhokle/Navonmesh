@@ -64,6 +64,16 @@ const useLocationStore = create((set, get) => ({
     return { lat: loc.lat, lng: loc.lng };
   },
 
+  // Explicitly remove a single user's location (e.g., ambulance reached hospital)
+  removeLocation: (userId) => {
+    if (!userId) return;
+    set((state) => {
+      const next = { ...state.liveLocations };
+      delete next[userId];
+      return { liveLocations: next };
+    });
+  },
+
   // Remove stale entries (called periodically to keep memory clean)
   pruneStale: () => {
     const now = Date.now();

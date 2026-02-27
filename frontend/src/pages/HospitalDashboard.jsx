@@ -34,7 +34,7 @@ export default function HospitalDashboard() {
     isLoading,
   } = useHospitalStore();
 
-  const { liveLocations, updateLocation, fetchLiveLocations } = useLocationStore();
+  const { liveLocations, updateLocation, fetchLiveLocations, removeLocation } = useLocationStore();
 
   const [bedInput, setBedInput] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
@@ -59,11 +59,13 @@ export default function HospitalDashboard() {
       toast.info('🏥 New incoming patient assigned!', { autoClose: 7000 });
     });
     socket.on('location-update', updateLocation);
+    socket.on('location-cleared', (data) => removeLocation(data?.userId));
 
     return () => {
       socket.off('emergency-updated');
       socket.off('incoming-patient');
       socket.off('location-update');
+      socket.off('location-cleared');
     };
   }, []);
 
@@ -126,14 +128,12 @@ export default function HospitalDashboard() {
           label: `Patient: ${p.citizenName ?? 'Unknown'}`,
         });
       }
-      // Show ambulance live position if available
+      // Show ambulance only if actively sharing live position
       const ambId = p.assignedAmbulance?._id;
       if (ambId) {
-        const live = liveLocations[ambId];
-        const aLat = live?.lat ?? p.assignedAmbulance?.currentLocation?.coordinates?.[1];
-        const aLng = live?.lng ?? p.assignedAmbulance?.currentLocation?.coordinates?.[0];
-        if (aLat != null) {
-          markers.push({ type: 'ambulance', lat: aLat, lng: aLng, label: `Ambulance: ${p.assignedAmbulance.name ?? ''}` });
+        const live = liveLocations[ambId]; // live only — no DB fallback
+        if (live?.lat != null) {
+          markers.push({ type: 'ambulance', lat: live.lat, lng: live.lng, label: `Ambulance: ${p.assignedAmbulance.name ?? ''}` });
         }
       }
     });
@@ -151,12 +151,10 @@ export default function HospitalDashboard() {
       if (p.status !== 'picked_up') return;
       const ambId = p.assignedAmbulance?._id;
       if (!ambId) return;
-      const live = liveLocations[ambId];
-      const aLat = live?.lat ?? p.assignedAmbulance?.currentLocation?.coordinates?.[1];
-      const aLng = live?.lng ?? p.assignedAmbulance?.currentLocation?.coordinates?.[0];
-      if (aLat == null) return;
+      const live = liveLocations[ambId]; // live only — no DB fallback
+      if (!live?.lat) return;
       routes.push({
-        origin: { lat: aLat, lng: aLng },
+        origin: { lat: live.lat, lng: live.lng },
         destination: { lat: hospLat, lng: hospLng },
         color: '#0f9d58',
       });

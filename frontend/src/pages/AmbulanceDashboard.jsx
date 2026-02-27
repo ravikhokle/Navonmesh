@@ -38,7 +38,7 @@ export default function AmbulanceDashboard() {
     isLoading,
   } = useAmbulanceStore();
 
-  const { liveLocations, updateLocation, fetchLiveLocations } = useLocationStore();
+  const { liveLocations, updateLocation, fetchLiveLocations, removeLocation } = useLocationStore();
 
   const [myLocation, setMyLocation] = useState(null);
   const watchIdRef = useRef(null);
@@ -70,11 +70,13 @@ export default function AmbulanceDashboard() {
     });
     socket.on('emergency-updated', (data) => updateEmergency(data));
     socket.on('location-update', updateLocation);
+    socket.on('location-cleared', (data) => removeLocation(data?.userId));
 
     return () => {
       socket.off('ambulance-assigned');
       socket.off('emergency-updated');
       socket.off('location-update');
+      socket.off('location-cleared');
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -114,6 +116,25 @@ export default function AmbulanceDashboard() {
       }
     };
   }, [isOnDuty, authUser]);
+
+  // ── Stop GPS + clear server cache when ambulance reaches hospital ──
+  useEffect(() => {
+    const terminalStatuses = ['hospital_notified', 'completed'];
+    if (activeEmergency && terminalStatuses.includes(activeEmergency.status)) {
+      // Kill GPS watch so no more location pings are emitted
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setMyLocation(null);
+      // Notify server (and all connected clients) to remove this ambulance from the map
+      const uid = authUser?._id ?? authUser?.id;
+      if (uid) {
+        socket.emit('clear-location', { userId: uid });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeEmergency?.status]);
 
   // ── Map markers + routes based on active emergency status ──
   const { mapMarkers, mapRoutes } = useMemo(() => {
