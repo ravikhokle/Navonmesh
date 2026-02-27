@@ -1,0 +1,14 @@
+{
+  "name": "emergex-backend",
+  "version": "1.0.0",
+  "description": "Emergex backend server",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
