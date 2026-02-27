@@ -3,6 +3,7 @@ import {
   Siren,
   MapPin,
   Phone,
+  PhoneCall,
   User,
   Building2,
   Navigation,
@@ -157,6 +158,8 @@ export default function CitizenPage() {
         setTrackedEmergency(emergency);
         // Join emergency socket room for targeted updates
         socket.emit('join-emergency', emergency._id);
+        // Open phone dialer with 108 pre-dialled so patient can speak to ERS immediately
+        window.location.href = 'tel:108';
       }
     } catch { /* already toasted */ }
   };
@@ -308,6 +311,26 @@ export default function CitizenPage() {
           )}
         </div>
 
+        {/* ── Call 108 Quick Dial ── */}
+        <a
+          href="tel:108"
+          className="card flex items-center justify-between gap-4 border border-red-200 bg-red-50 hover:bg-red-100 transition-colors no-underline cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+              <PhoneCall size={22} className="text-red-600" />
+            </div>
+            <div>
+              <p className="font-bold text-red-800 text-sm">Call 108 — ERS Helpline</p>
+              <p className="text-xs text-red-500">Tap to connect directly with Emergency Response</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-red-600 text-white font-bold text-sm px-4 py-2.5 rounded-xl flex-shrink-0">
+            <PhoneCall size={15} />
+            108
+          </div>
+        </a>
+
         {/* ── Share Live Location ── */}
         <div className="card flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -401,6 +424,24 @@ export default function CitizenPage() {
   // ════════════════════════════════════════════════════════════════════════════
   return (
     <div className="space-y-6">
+
+      {/* ── Call 108 Banner (always visible, fastest way to reach ERS) ── */}
+      <div className="card border border-red-200 bg-red-50 flex items-center justify-between gap-4">
+        <div>
+          <p className="font-bold text-red-800">Life-threatening emergency?</p>
+          <p className="text-sm text-red-600 mt-0.5">
+            Tap <strong>Call 108</strong> to open your phone dialer instantly — press call to reach ERS
+          </p>
+        </div>
+        <a
+          href="tel:108"
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold px-5 py-3 rounded-xl text-sm transition-all duration-150 flex-shrink-0 cursor-pointer no-underline"
+        >
+          <PhoneCall size={18} />
+          Call 108
+        </a>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* ── Left: SOS Form ── */}
