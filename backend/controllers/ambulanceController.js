@@ -1,5 +1,4 @@
 import Emergency from "../models/Emergency.js";
-import { sendWhatsAppMessage } from "../utils/sendWhatsApp.js";
 import { autoAssignNearbyTraffic } from "../utils/autoTraffic.js";
 
 // @desc    Update ambulance/emergency status (en_route, picked_up, completed)
@@ -26,25 +25,6 @@ export const updateEmergencyStatus = async (req, res) => {
 
     if (!emergency) {
       return res.status(404).json({ message: "Emergency not found" });
-    }
-
-    // Send WhatsApp update to citizen if phone is available
-    if (emergency.citizenPhone) {
-      const statusMessages = {
-        en_route:          "🚑 An ambulance is on its way to your location.",
-        picked_up:         "🏥 Patient picked up. Heading to hospital.",
-        hospital_notified: "🏥 Ambulance has arrived at the hospital.",
-        completed:         "✅ Emergency completed. Stay safe!",
-      };
-
-      try {
-        await sendWhatsAppMessage(
-          emergency.citizenPhone,
-          `EMERGEX Update: ${statusMessages[status]}`
-        );
-      } catch (err) {
-        console.error("WhatsApp notification failed:", err.message);
-      }
     }
 
     const io = req.app.get("io");

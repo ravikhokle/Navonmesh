@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import crypto from "crypto";
 
 const ALLOWED_ROLES = ["ers", "ambulance", "hospital", "traffic"];
 
@@ -50,9 +51,41 @@ const userSchema = new mongoose.Schema(
         default: [0, 0],
       },
     },
+    // Email verification
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: String,
+    emailVerificationExpires: Date,
+    // Password reset
+    resetPasswordToken: String,
+    resetPasswordExpires: Date,
   },
   { timestamps: true }
 );
+
+// Generate email verification token
+userSchema.methods.createEmailVerificationToken = function () {
+  const token = crypto.randomBytes(32).toString("hex");
+  this.emailVerificationToken = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  return token;
+};
+
+// Generate password reset token
+userSchema.methods.createPasswordResetToken = function () {
+  const token = crypto.randomBytes(32).toString("hex");
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+  this.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
+  return token;
+};
 
 export { ALLOWED_ROLES };
 const User = mongoose.model("User", userSchema);

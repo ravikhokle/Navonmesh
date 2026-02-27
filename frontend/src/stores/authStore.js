@@ -30,11 +30,9 @@ const useAuthStore = create((set) => ({
     set({ isLoading: true });
     try {
       const { data } = await api.post('/auth/signup', { name, email, password, city, role });
-      localStorage.setItem('emergex_token', data.token);
-      localStorage.setItem('emergex_user', JSON.stringify(data.user));
-      set({ user: data.user, token: data.token, isLoading: false });
-      toast.success('Account created successfully!');
-      return data.user;
+      set({ isLoading: false });
+      toast.success(data.message || 'Account created! Check your email for verification.');
+      return data;
     } catch (error) {
       set({ isLoading: false });
       toast.error(error.response?.data?.message || 'Signup failed');
@@ -61,6 +59,69 @@ const useAuthStore = create((set) => ({
     } catch (error) {
       set({ isLoading: false });
       toast.error(error.response?.data?.message || 'Failed to update profile');
+      throw error;
+    }
+  },
+
+  forgotPassword: async (email) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.post('/auth/forgot-password', { email });
+      set({ isLoading: false });
+      toast.success(data.message);
+      return data;
+    } catch (error) {
+      set({ isLoading: false });
+      toast.error(error.response?.data?.message || 'Failed to send reset email');
+      throw error;
+    }
+  },
+
+  resetPassword: async (token, password) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.post(`/auth/reset-password/${token}`, { password });
+      set({ isLoading: false });
+      toast.success(data.message);
+      return data;
+    } catch (error) {
+      set({ isLoading: false });
+      toast.error(error.response?.data?.message || 'Failed to reset password');
+      throw error;
+    }
+  },
+
+  verifyEmail: async (token) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.get(`/auth/verify-email/${token}`);
+      // Update local user if logged in
+      const currentUser = JSON.parse(localStorage.getItem('emergex_user') || 'null');
+      if (currentUser) {
+        currentUser.isEmailVerified = true;
+        localStorage.setItem('emergex_user', JSON.stringify(currentUser));
+        set({ user: currentUser });
+      }
+      set({ isLoading: false });
+      toast.success(data.message);
+      return data;
+    } catch (error) {
+      set({ isLoading: false });
+      toast.error(error.response?.data?.message || 'Verification failed');
+      throw error;
+    }
+  },
+
+  resendVerification: async () => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.post('/auth/resend-verification');
+      set({ isLoading: false });
+      toast.success(data.message);
+      return data;
+    } catch (error) {
+      set({ isLoading: false });
+      toast.error(error.response?.data?.message || 'Failed to resend verification');
       throw error;
     }
   },
