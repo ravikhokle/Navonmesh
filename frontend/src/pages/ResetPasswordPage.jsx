@@ -36,7 +36,7 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-red-50 flex flex-col">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
       <div className="px-4 sm:px-8 pt-6">
         <Link
           to="/login"
@@ -50,14 +50,14 @@ export default function ResetPasswordPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-red-600 rounded-xl mb-3 shadow-lg shadow-red-600/20">
-              <Shield size={28} className="text-white" />
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-red-600 rounded-xl mb-3 shadow-lg shadow-red-600/20">
+              <Shield size={24} className="text-white" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900">Reset Password</h1>
-            <p className="text-sm text-gray-500 mt-1">Enter your new password below</p>
+            <p className="text-sm text-gray-400 mt-1">Enter your new password below</p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/60 border border-gray-200/80 p-6 sm:p-8">
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200/70 overflow-hidden p-6 sm:p-8">
             {done ? (
               <div className="text-center py-6">
                 <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
                 </p>
                 <button
                   onClick={() => navigate('/login')}
-                  className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-gray-900 to-gray-800 hover:from-gray-800 hover:to-gray-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-all cursor-pointer shadow-md shadow-gray-900/20"
                 >
                   Go to Login
                 </button>
@@ -129,7 +129,7 @@ export default function ResetPasswordPage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-gray-800 hover:to-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-gray-900/20"
                 >
                   {isLoading ? (
                     <>

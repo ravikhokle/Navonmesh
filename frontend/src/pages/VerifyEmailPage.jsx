@@ -24,16 +24,16 @@ export default function VerifyEmailPage() {
   }, [token, verifyEmail]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 via-gray-50 to-red-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-red-600 rounded-xl mb-3 shadow-lg shadow-red-600/20">
-            <Shield size={28} className="text-white" />
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-red-600 rounded-xl mb-3 shadow-lg shadow-red-600/20">
+            <Shield size={24} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Email Verification</h1>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/60 border border-gray-200/80 p-6 sm:p-8">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200/70 overflow-hidden p-6 sm:p-8">
           <div className="text-center py-6">
             {status === 'loading' && (
               <>
@@ -52,7 +52,7 @@ export default function VerifyEmailPage() {
                 <p className="text-sm text-gray-500 mb-6">{message}</p>
                 <Link
                   to="/login"
-                  className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-gray-900 to-gray-800 hover:from-gray-800 hover:to-gray-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-all shadow-md shadow-gray-900/20"
                 >
                   Go to Login
                 </Link>

@@ -421,13 +421,13 @@ export default function ERSDashboard() {
       {/* Emergency List */}
       <div className="card">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Siren size={18} className="text-red-500" />
             Incoming Emergencies
           </h3>
           <button onClick={refreshAll} className="btn-secondary flex items-center gap-2 text-sm">
             <RefreshCw size={14} />
-            Refresh All
+            Refresh
           </button>
         </div>
 
@@ -663,19 +663,19 @@ export default function ERSDashboard() {
 /* ─── Stat Card ─── */
 function StatCard({ icon: IconComp, label, value, color }) {
   const colors = {
-    red: 'bg-red-50 text-red-600',
-    rose: 'bg-rose-50 text-rose-600',
-    amber: 'bg-amber-50 text-amber-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
+    red: 'bg-red-50 text-red-600 shadow-red-100',
+    rose: 'bg-rose-50 text-rose-600 shadow-rose-100',
+    amber: 'bg-amber-50 text-amber-600 shadow-amber-100',
+    emerald: 'bg-emerald-50 text-emerald-600 shadow-emerald-100',
   };
   return (
-    <div className="card flex items-center gap-4">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${colors[color]}`}>
+    <div className="card flex items-center gap-4 hover:shadow-md transition-all">
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${colors[color]}`}>
         <IconComp size={22} />
       </div>
       <div>
         <p className="text-2xl font-bold text-gray-900">{value}</p>
-        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-xs text-gray-500 font-medium">{label}</p>
       </div>
     </div>
   );
@@ -727,7 +727,7 @@ function EmergencyCard({
 
   return (
     <div
-      className={`border border-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-all border-l-4 ${
+      className={`border border-gray-200/80 rounded-2xl overflow-hidden hover:shadow-lg transition-all border-l-4 ${
         priorityBorder[emergency.priority] || 'border-l-amber-400'
       }`}
     >
