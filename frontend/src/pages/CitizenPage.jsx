@@ -21,6 +21,7 @@ import useLocationStore from '../stores/locationStore';
 import socket, { connectSocket } from '../lib/socket';
 import LiveMap from '../components/common/LiveMap';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import VoiceInput from '../components/common/VoiceInput';
 
 // ── Status display config ────────────────────────────────────────────────────
 const STATUS_INFO = {
@@ -491,6 +492,19 @@ export default function CitizenPage() {
           <div className="card">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency Details</h3>
             <form onSubmit={handleSOS} className="space-y-4">
+
+              {/* ── Voice Fill — top of form ── */}
+              <VoiceInput
+                onFieldsFilled={(fields) =>
+                  setForm((prev) => ({
+                    name:        fields.name        || prev.name,
+                    phone:       fields.phone       || prev.phone,
+                    description: fields.description || prev.description,
+                  }))
+                }
+                disabled={isLoading}
+              />
+
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
                   <User size={14} /> Full Name
@@ -524,7 +538,7 @@ export default function CitizenPage() {
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Describe the emergency..."
+                  placeholder="Describe the emergency…"
                   rows={3}
                   className="input-field resize-none"
                 />
