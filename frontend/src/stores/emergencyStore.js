@@ -6,14 +6,26 @@ const useEmergencyStore = create((set, get) => ({
   emergencies: [],
   currentEmergency: null,
   nearestHospitals: [],
+  availableAmbulances: [],
+  availableHospitals: [],
+  availableTrafficUsers: [],
   isLoading: false,
 
-  // Citizen: Create SOS
+  // ── Citizen: Create SOS (public, no auth) ──
   createSOS: async (payload) => {
     set({ isLoading: true });
     try {
-      const { data } = await api.post('/emergency/sos', payload);
-      set({ currentEmergency: data.emergency, isLoading: false });
+      const { data } = await api.post('/citizen/emergency', {
+        citizenName: payload.name,
+        citizenPhone: payload.phone,
+        description: payload.description,
+        location: {
+          type: 'Point',
+          coordinates: [payload.location.lng, payload.location.lat],
+          address: payload.location.address || '',
+        },
+      });
+      set({ currentEmergency: data, isLoading: false });
       toast.success('SOS sent! Help is on the way.');
       return data;
     } catch (error) {
@@ -23,71 +35,115 @@ const useEmergencyStore = create((set, get) => ({
     }
   },
 
-  // ERS: Fetch all emergencies
+  // ── Citizen: Nearest hospitals (public) ──
+  fetchNearestHospitals: async (lat, lng) => {
+    try {
+      const { data } = await api.get(`/citizen/hospitals/nearby?lat=${lat}&lng=${lng}`);
+      set({ nearestHospitals: data });
+    } catch (error) {
+      toast.error('Failed to fetch hospitals');
+    }
+  },
+
+  // ── ERS: Fetch all emergencies ──
   fetchEmergencies: async () => {
     set({ isLoading: true });
     try {
-      const { data } = await api.get('/emergency');
-      set({ emergencies: data.emergencies || data, isLoading: false });
+      const { data } = await api.get('/ers/emergencies');
+      set({ emergencies: data, isLoading: false });
     } catch (error) {
       set({ isLoading: false });
       toast.error('Failed to fetch emergencies');
     }
   },
 
-  // ERS: Assign ambulance
+  // ── ERS: Fetch available ambulances ──
+  fetchAvailableAmbulances: async () => {
+    try {
+      const { data } = await api.get('/ers/ambulances');
+      set({ availableAmbulances: data });
+    } catch (error) {
+      toast.error('Failed to fetch ambulances');
+    }
+  },
+
+  // ── ERS: Fetch all hospitals ──
+  fetchAvailableHospitals: async () => {
+    try {
+      const { data } = await api.get('/ers/hospitals');
+      set({ availableHospitals: data });
+    } catch (error) {
+      toast.error('Failed to fetch hospitals');
+    }
+  },
+
+  // ── ERS: Fetch available traffic users ──
+  fetchAvailableTrafficUsers: async () => {
+    try {
+      const { data } = await api.get('/ers/traffic-users');
+      set({ availableTrafficUsers: data });
+    } catch (error) {
+      toast.error('Failed to fetch traffic officers');
+    }
+  },
+
+  // ── ERS: Set priority ──
+  setPriority: async (emergencyId, priority) => {
+    try {
+      const { data } = await api.put(`/ers/emergency/${emergencyId}/priority`, { priority });
+      get().updateEmergency(data);
+      toast.success('Priority updated');
+    } catch (error) {
+      toast.error('Failed to set priority');
+    }
+  },
+
+  // ── ERS: Assign ambulance ──
   assignAmbulance: async (emergencyId, ambulanceId) => {
     try {
-      const { data } = await api.post('/emergency/assign-ambulance', {
-        emergencyId,
+      const { data } = await api.put(`/ers/emergency/${emergencyId}/assign-ambulance`, {
         ambulanceId,
       });
+      get().updateEmergency(data);
       toast.success('Ambulance assigned');
-      get().fetchEmergencies();
-      return data;
     } catch (error) {
       toast.error('Failed to assign ambulance');
     }
   },
 
-  // ERS: Send traffic alert
-  sendTrafficAlert: async (emergencyId) => {
+  // ── ERS: Notify hospital ──
+  sendHospitalAlert: async (emergencyId, hospitalId) => {
     try {
-      await api.post('/emergency/traffic-alert', { emergencyId });
+      const { data } = await api.put(`/ers/emergency/${emergencyId}/notify-hospital`, {
+        hospitalId,
+      });
+      get().updateEmergency(data);
+      toast.success('Hospital notified');
+    } catch (error) {
+      toast.error('Failed to notify hospital');
+    }
+  },
+
+  // ── ERS: Notify traffic ──
+  sendTrafficAlert: async (emergencyId, trafficId) => {
+    try {
+      const { data } = await api.put(`/ers/emergency/${emergencyId}/notify-traffic`, {
+        trafficId,
+      });
+      get().updateEmergency(data);
       toast.success('Traffic alert sent');
     } catch (error) {
       toast.error('Failed to send traffic alert');
     }
   },
 
-  // ERS: Send hospital alert
-  sendHospitalAlert: async (emergencyId, hospitalId) => {
-    try {
-      await api.post('/emergency/hospital-alert', { emergencyId, hospitalId });
-      toast.success('Hospital alerted');
-    } catch (error) {
-      toast.error('Failed to alert hospital');
-    }
-  },
-
-  // Citizen: Get nearest hospitals
-  fetchNearestHospitals: async (lat, lng) => {
-    try {
-      const { data } = await api.get(`/hospitals/nearest?lat=${lat}&lng=${lng}`);
-      set({ nearestHospitals: data.hospitals || data });
-    } catch (error) {
-      toast.error('Failed to fetch hospitals');
-    }
-  },
-
-  // Add emergency from socket
+  // ── Socket helpers ──
   addEmergency: (emergency) => {
     set((state) => ({
       emergencies: [emergency, ...state.emergencies],
     }));
   },
 
-  // Update emergency from socket
   updateEmergency: (updated) => {
     set((state) => ({
       emergencies: state.emergencies.map((e) =>

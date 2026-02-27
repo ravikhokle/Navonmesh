@@ -5,7 +5,7 @@ const emergencySchema = new mongoose.Schema(
     citizen: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null,
     },
     citizenName: {
       type: String,

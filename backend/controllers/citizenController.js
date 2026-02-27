@@ -8,8 +8,11 @@ export const createEmergency = async (req, res) => {
   try {
     const { citizenName, citizenPhone, location, description } = req.body;
 
+    if (!citizenName || !location?.coordinates) {
+      return res.status(400).json({ message: "Citizen name and location are required" });
+    }
+
     const emergency = await Emergency.create({
-      citizen: req.user._id,
       citizenName,
       citizenPhone,
       location,

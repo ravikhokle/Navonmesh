@@ -2,8 +2,10 @@ import { create } from 'zustand';
 import api from '../lib/axios';
 import { toast } from 'react-toastify';
 
+const storedUser = localStorage.getItem('emergex_user');
+
 const useAuthStore = create((set) => ({
-  user: JSON.parse(localStorage.getItem('emergex_user')) || null,
+  user: storedUser ? JSON.parse(storedUser) : null,
   token: localStorage.getItem('emergex_token') || null,
   isLoading: false,
 

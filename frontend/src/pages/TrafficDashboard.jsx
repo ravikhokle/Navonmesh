@@ -1,13 +1,12 @@
 import { useEffect } from 'react';
 import {
-  TrafficCone,
   Shield,
+  ShieldCheck,
   ShieldOff,
-  MapPin,
-  Clock,
-  ArrowRight,
-  CheckCircle2,
   AlertTriangle,
+  MapPin,
+  CheckCircle2,
+  RefreshCw,
   Siren,
 } from 'lucide-react';
 import useTrafficStore from '../stores/trafficStore';
@@ -15,8 +14,16 @@ import socket, { connectSocket } from '../lib/socket';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 export default function TrafficDashboard() {
-  const { isOnDuty, activeAlerts, fetchDutyStatus, toggleDuty, fetchAlerts, clearTraffic, addAlert, isLoading } =
-    useTrafficStore();
+  const {
+    isOnDuty,
+    activeAlerts,
+    fetchDutyStatus,
+    toggleDuty,
+    fetchAlerts,
+    clearRoute,
+    addAlert,
+    isLoading,
+  } = useTrafficStore();
 
   useEffect(() => {
     fetchDutyStatus();
@@ -24,67 +31,67 @@ export default function TrafficDashboard() {
     connectSocket();
 
     socket.on('traffic-alert', (data) => addAlert(data));
+    socket.on('emergency-updated', () => fetchAlerts());
 
     return () => {
       socket.off('traffic-alert');
+      socket.off('emergency-updated');
     };
-  }, [fetchDutyStatus, fetchAlerts, addAlert]);
+  }, []);
 
-  if (isLoading && !activeAlerts.length) return <LoadingSpinner />;
+  const pendingAlerts = activeAlerts.filter((a) => !a.routeCleared);
+  const clearedAlerts = activeAlerts.filter((a) => a.routeCleared);
+
+  if (isLoading && activeAlerts.length === 0) return <LoadingSpinner />;
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Duty Status Toggle */}
-      <div className="card">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-colors ${
-                isOnDuty ? 'bg-emerald-50' : 'bg-gray-100'
-              }`}
-            >
-              {isOnDuty ? (
-                <Shield size={32} className="text-emerald-600" />
-              ) : (
-                <ShieldOff size={32} className="text-gray-400" />
-              )}
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-gray-900">
-                {isOnDuty ? 'On Duty' : 'Off Duty'}
-              </h3>
-              <p className="text-sm text-gray-500">
-                {isOnDuty
-                  ? 'You are receiving emergency traffic alerts'
-                  : 'Toggle to start receiving alerts'}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={toggleDuty}
-            className={`relative w-20 h-10 rounded-full transition-colors duration-300 cursor-pointer ${
-              isOnDuty ? 'bg-emerald-500' : 'bg-gray-300'
+    <div className="space-y-6">
+      {/* Duty top bar */}
+      <div
+        className={`card flex flex-col sm:flex-row items-center justify-between gap-4 ${
+          isOnDuty ? 'ring-2 ring-emerald-400' : ''
+        }`}
+      >
+        <div className="flex items-center gap-4">
+          <div
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+              isOnDuty ? 'bg-emerald-50' : 'bg-gray-100'
             }`}
           >
-            <div
-              className={`absolute top-1 w-8 h-8 bg-white rounded-full shadow-md transition-transform duration-300 ${
-                isOnDuty ? 'translate-x-10' : 'translate-x-1'
-              }`}
-            />
-          </button>
+            {isOnDuty ? (
+              <ShieldCheck size={28} className="text-emerald-600" />
+            ) : (
+              <ShieldOff size={28} className="text-gray-400" />
+            )}
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Traffic Control</h2>
+            <p className={`text-sm ${isOnDuty ? 'text-emerald-600' : 'text-gray-500'}`}>
+              {isOnDuty ? 'On Duty — Receiving Alerts' : 'Off Duty'}
+            </p>
+          </div>
         </div>
+        <button
+          onClick={toggleDuty}
+          className={`px-6 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${
+            isOnDuty
+              ? 'bg-red-50 text-red-600 hover:bg-red-100'
+              : 'bg-emerald-500 text-white hover:bg-emerald-600'
+          }`}
+        >
+          {isOnDuty ? 'Go Off Duty' : 'Go On Duty'}
+        </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
-            <Siren size={22} className="text-red-600" />
+          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
+            <AlertTriangle size={22} className="text-amber-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{activeAlerts.length}</p>
-            <p className="text-xs text-gray-500">Active Alerts</p>
+            <p className="text-2xl font-bold text-gray-900">{pendingAlerts.length}</p>
+            <p className="text-xs text-gray-500">Pending Alerts</p>
           </div>
         </div>
         <div className="card flex items-center gap-4">
@@ -92,88 +99,114 @@ export default function TrafficDashboard() {
             <CheckCircle2 size={22} className="text-emerald-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">
-              {isOnDuty ? 'Active' : 'Inactive'}
-            </p>
-            <p className="text-xs text-gray-500">Duty Status</p>
+            <p className="text-2xl font-bold text-gray-900">{clearedAlerts.length}</p>
+            <p className="text-xs text-gray-500">Cleared</p>
+          </div>
+        </div>
+        <div className="card flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+            <Shield size={22} className="text-blue-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{activeAlerts.length}</p>
+            <p className="text-xs text-gray-500">Total Assigned</p>
           </div>
         </div>
       </div>
 
-      {/* Active Alerts */}
+      {/* Pending Alerts */}
       <div className="card">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <TrafficCone size={18} className="text-amber-500" />
-          Emergency Route Alerts
-          {activeAlerts.length > 0 && (
-            <span className="ml-2 badge-critical">{activeAlerts.length}</span>
+          <Siren size={18} className="text-amber-500" />
+          Pending Route Clears
+          {pendingAlerts.length > 0 && (
+            <span className="ml-auto badge-critical">{pendingAlerts.length}</span>
           )}
         </h3>
 
-        {activeAlerts.length === 0 ? (
-          <div className="text-center py-12">
-            <TrafficCone size={48} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-500 font-medium">No active alerts</p>
-            <p className="text-sm text-gray-400 mt-1">
-              Alerts will appear here when emergencies require traffic clearance
-            </p>
+        {pendingAlerts.length === 0 ? (
+          <div className="text-center py-10">
+            <CheckCircle2 size={40} className="mx-auto text-emerald-300 mb-3" />
+            <p className="text-gray-500">All routes cleared — good job!</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {activeAlerts.map((alert, idx) => (
+          <div className="space-y-3">
+            {pendingAlerts.map((alert, idx) => (
               <div
                 key={alert._id || idx}
-                className="border border-amber-200 bg-amber-50/50 rounded-xl p-5 hover:border-amber-300 transition-colors"
+                className="border border-amber-200 bg-amber-50/40 rounded-xl p-4"
               >
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <AlertTriangle size={16} className="text-amber-600" />
-                      <h4 className="font-semibold text-gray-900">
-                        Emergency Route #{alert._id?.slice(-6) || idx + 1}
-                      </h4>
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      {/* Route */}
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <MapPin size={14} className="text-red-500 flex-shrink-0" />
-                        <span>
-                          {alert.from?.lat?.toFixed(4)}, {alert.from?.lng?.toFixed(4)}
-                        </span>
-                        <ArrowRight size={14} className="text-gray-400" />
-                        <span>
-                          {alert.to?.lat?.toFixed(4)}, {alert.to?.lng?.toFixed(4)}
-                        </span>
-                      </div>
-
-                      {/* Time */}
-                      <p className="flex items-center gap-2 text-gray-500">
-                        <Clock size={14} />
-                        {alert.createdAt
-                          ? new Date(alert.createdAt).toLocaleString()
-                          : 'Just now'}
-                      </p>
-
-                      {alert.description && (
-                        <p className="text-gray-600">{alert.description}</p>
-                      )}
-                    </div>
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-amber-600" />
+                    <p className="font-medium text-gray-900">
+                      {alert.citizenName || 'Emergency'}
+                    </p>
                   </div>
-
-                  <button
-                    onClick={() => clearTraffic(alert._id)}
-                    className="btn-success flex items-center gap-2 text-sm whitespace-nowrap"
+                  <span
+                    className={`text-xs font-semibold px-2 py-1 rounded-md ${
+                      alert.priority === 'critical'
+                        ? 'bg-red-100 text-red-700'
+                        : alert.priority === 'high'
+                        ? 'bg-orange-100 text-orange-700'
+                        : 'bg-amber-100 text-amber-700'
+                    }`}
                   >
-                    <CheckCircle2 size={14} />
-                    Clear Traffic
-                  </button>
+                    {alert.priority?.toUpperCase() || 'N/A'}
+                  </span>
                 </div>
+                {alert.description && (
+                  <p className="text-sm text-gray-600 mb-2">{alert.description}</p>
+                )}
+                {alert.location?.coordinates && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
+                    <MapPin size={12} />
+                    {alert.location.coordinates[1].toFixed(4)},{' '}
+                    {alert.location.coordinates[0].toFixed(4)}
+                  </p>
+                )}
+                <button
+                  onClick={() => clearRoute(alert._id)}
+                  className="btn-primary w-full flex items-center justify-center gap-2 text-sm py-2"
+                >
+                  <CheckCircle2 size={14} />
+                  Mark Route Cleared
+                </button>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Cleared alerts */}
+      {clearedAlerts.length > 0 && (
+        <div className="card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <RefreshCw size={18} className="text-emerald-500" />
+            Cleared Routes
+          </h3>
+          <div className="space-y-2">
+            {clearedAlerts.map((alert, idx) => (
+              <div
+                key={alert._id || idx}
+                className="flex items-center justify-between border border-gray-100 rounded-lg p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={14} className="text-emerald-500" />
+                  <span className="text-sm text-gray-700">
+                    {alert.citizenName || 'Emergency'}
+                  </span>
+                </div>
+                <span className="text-xs text-gray-400">
+                  {alert.updatedAt
+                    ? new Date(alert.updatedAt).toLocaleTimeString()
+                    : 'Cleared'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

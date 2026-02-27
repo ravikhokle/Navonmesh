@@ -50,13 +50,16 @@ export const signup = async (req, res) => {
       city,
     });
 
+    const token = generateToken(user._id, user.role);
     res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      city: user.city,
-      token: generateToken(user._id, user.role),
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        city: user.city,
+      },
+      token,
     });
   } catch (error) {
     // Handle Mongoose validation errors
@@ -92,14 +95,17 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    const token = generateToken(user._id, user.role);
     res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      city: user.city,
-      isOnDuty: user.isOnDuty,
-      token: generateToken(user._id, user.role),
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        city: user.city,
+        isOnDuty: user.isOnDuty,
+      },
+      token,
     });
   } catch (error) {
     res.status(500).json({ message: "Server error" });

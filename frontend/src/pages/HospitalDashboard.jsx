@@ -17,9 +17,9 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 
 export default function HospitalDashboard() {
   const {
-    beds,
+    hospital,
     incomingPatients,
-    fetchBeds,
+    fetchMyHospital,
     fetchIncomingPatients,
     updateBedCount,
     acceptPatient,
@@ -31,45 +31,59 @@ export default function HospitalDashboard() {
   const [bedInput, setBedInput] = useState(null);
 
   useEffect(() => {
-    fetchBeds();
+    fetchMyHospital();
     fetchIncomingPatients();
     connectSocket();
 
+    socket.on('emergency-updated', () => fetchIncomingPatients());
     socket.on('incoming-patient', (data) => addIncomingPatient(data));
 
     return () => {
+      socket.off('emergency-updated');
       socket.off('incoming-patient');
     };
-  }, [fetchBeds, fetchIncomingPatients, addIncomingPatient]);
+  }, []);
 
-  const displayBedInput = bedInput ?? beds.available ?? 0;
+  const beds = hospital?.availableBeds ?? 0;
+  const displayBedInput = bedInput ?? beds;
 
-  if (isLoading && !beds.total) return <LoadingSpinner />;
-
-  const occupancy = beds.total
-    ? Math.round(((beds.total - beds.available) / beds.total) * 100)
-    : 0;
+  if (isLoading && !hospital) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Hospital info */}
+      {hospital && (
         <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-            <Bed size={22} className="text-blue-600" />
+          <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center">
+            <Building2 size={28} className="text-red-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{beds.total || 0}</p>
-            <p className="text-xs text-gray-500">Total Beds</p>
+            <h2 className="text-xl font-bold text-gray-900">{hospital.name}</h2>
+            <p className="text-sm text-gray-500">{hospital.city}</p>
           </div>
         </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card flex items-center gap-4">
           <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
             <CheckCircle2 size={22} className="text-emerald-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{beds.available || 0}</p>
+            <p className="text-2xl font-bold text-gray-900">{beds}</p>
             <p className="text-xs text-gray-500">Available Beds</p>
+          </div>
+        </div>
+        <div className="card flex items-center gap-4">
+          <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
+            <UserPlus size={22} className="text-red-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">
+              {incomingPatients.filter((p) => p.hospitalResponse === 'pending').length}
+            </p>
+            <p className="text-xs text-gray-500">Pending Patients</p>
           </div>
         </div>
         <div className="card flex items-center gap-4">
@@ -77,8 +91,10 @@ export default function HospitalDashboard() {
             <AlertTriangle size={22} className="text-amber-600" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-gray-900">{occupancy}%</p>
-            <p className="text-xs text-gray-500">Occupancy Rate</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {incomingPatients.filter((p) => p.hospitalResponse === 'accepted').length}
+            </p>
+            <p className="text-xs text-gray-500">Accepted</p>
           </div>
         </div>
       </div>
@@ -87,29 +103,9 @@ export default function HospitalDashboard() {
         {/* Update Beds */}
         <div className="card">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Building2 size={18} className="text-red-500" />
+            <Bed size={18} className="text-red-500" />
             Update Available Beds
           </h3>
-
-          {/* Occupancy Bar */}
-          <div className="mb-6">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-500">Occupancy</span>
-              <span className="font-medium text-gray-700">{occupancy}%</span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-3">
-              <div
-                className={`h-3 rounded-full transition-all duration-500 ${
-                  occupancy > 80
-                    ? 'bg-red-500'
-                    : occupancy > 50
-                    ? 'bg-amber-500'
-                    : 'bg-emerald-500'
-                }`}
-                style={{ width: `${Math.min(occupancy, 100)}%` }}
-              />
-            </div>
-          </div>
 
           {/* Bed counter */}
           <div className="flex items-center justify-center gap-4 mb-6">
@@ -132,7 +128,12 @@ export default function HospitalDashboard() {
           </div>
 
           <button
-            onClick={() => updateBedCount(displayBedInput)}
+            onClick={() => {
+              if (hospital?._id) {
+                updateBedCount(hospital._id, displayBedInput);
+                setBedInput(null);
+              }
+            }}
             className="btn-primary w-full flex items-center justify-center gap-2"
           >
             <RefreshCw size={16} />
@@ -145,8 +146,10 @@ export default function HospitalDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <UserPlus size={18} className="text-red-500" />
             Incoming Patients
-            {incomingPatients.length > 0 && (
-              <span className="ml-auto badge-critical">{incomingPatients.length}</span>
+            {incomingPatients.filter((p) => p.hospitalResponse === 'pending').length > 0 && (
+              <span className="ml-auto badge-critical">
+                {incomingPatients.filter((p) => p.hospitalResponse === 'pending').length}
+              </span>
             )}
           </h3>
 
@@ -164,34 +167,51 @@ export default function HospitalDashboard() {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <p className="font-medium text-gray-900">{patient.name || 'Unknown'}</p>
+                      <p className="font-medium text-gray-900">
+                        {patient.citizenName || 'Unknown'}
+                      </p>
                       <p className="text-xs text-gray-500">
                         {patient.createdAt
                           ? new Date(patient.createdAt).toLocaleString()
                           : 'Just now'}
                       </p>
                     </div>
-                    <span className="badge-critical">{patient.priority || 'CRITICAL'}</span>
+                    <span
+                      className={`text-xs font-semibold px-2 py-1 rounded-md ${
+                        patient.hospitalResponse === 'accepted'
+                          ? 'bg-green-100 text-green-700'
+                          : patient.hospitalResponse === 'rejected'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      {patient.hospitalResponse?.toUpperCase() || 'PENDING'}
+                    </span>
                   </div>
                   {patient.description && (
                     <p className="text-sm text-gray-600 mb-3">{patient.description}</p>
                   )}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => acceptPatient(patient._id)}
-                      className="btn-success flex-1 flex items-center justify-center gap-1.5 text-sm py-2"
-                    >
-                      <CheckCircle2 size={14} />
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => rejectPatient(patient._id)}
-                      className="btn-secondary flex-1 flex items-center justify-center gap-1.5 text-sm py-2 hover:bg-red-50 hover:text-red-600"
-                    >
-                      <XCircle size={14} />
-                      Reject
-                    </button>
-                  </div>
+                  {patient.citizenPhone && (
+                    <p className="text-sm text-gray-500 mb-3">Phone: {patient.citizenPhone}</p>
+                  )}
+                  {patient.hospitalResponse === 'pending' && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => acceptPatient(patient._id)}
+                        className="btn-success flex-1 flex items-center justify-center gap-1.5 text-sm py-2"
+                      >
+                        <CheckCircle2 size={14} />
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => rejectPatient(patient._id)}
+                        className="btn-secondary flex-1 flex items-center justify-center gap-1.5 text-sm py-2 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <XCircle size={14} />
+                        Reject
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

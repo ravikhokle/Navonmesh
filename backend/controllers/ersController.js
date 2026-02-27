@@ -1,5 +1,6 @@
 import Emergency from "../models/Emergency.js";
 import User from "../models/User.js";
+import Hospital from "../models/Hospital.js";
 import { sendWhatsAppMessage } from "../utils/sendWhatsApp.js";
 
 // @desc    Get all emergency requests (for ERS dashboard)
@@ -158,6 +159,34 @@ export const getAvailableAmbulances = async (req, res) => {
     }).select("-password");
 
     res.json(ambulances);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get all hospitals
+// @route   GET /api/ers/hospitals
+// @access  Private (ers)
+export const getHospitals = async (req, res) => {
+  try {
+    const hospitals = await Hospital.find().sort({ availableBeds: -1 });
+    res.json(hospitals);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get available traffic police (on-duty)
+// @route   GET /api/ers/traffic-users
+// @access  Private (ers)
+export const getTrafficUsers = async (req, res) => {
+  try {
+    const trafficUsers = await User.find({
+      role: "traffic",
+      isOnDuty: true,
+    }).select("-password");
+
+    res.json(trafficUsers);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

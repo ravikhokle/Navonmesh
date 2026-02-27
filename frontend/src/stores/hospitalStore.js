@@ -3,69 +3,79 @@ import api from '../lib/axios';
 import { toast } from 'react-toastify';
 
 const useHospitalStore = create((set) => ({
-  beds: { total: 0, available: 0 },
+  hospital: null,
   incomingPatients: [],
   isLoading: false,
 
-  fetchBeds: async () => {
+  // Fetch hospital profile for current user
+  fetchMyHospital: async () => {
     set({ isLoading: true });
     try {
-      const { data } = await api.get('/hospital/beds');
-      set({ beds: data.beds || data, isLoading: false });
-    } catch (error) {
+      const { data } = await api.get('/hospital/me');
+      set({ hospital: data, isLoading: false });
+    } catch {
       set({ isLoading: false });
-      toast.error('Failed to fetch bed data');
+      toast.error('Failed to fetch hospital data');
     }
   },
 
-  updateBedCount: async (available) => {
+  // Update bed count
+  updateBedCount: async (hospitalId, availableBeds) => {
     try {
-      const { data } = await api.put('/hospital/beds', { available });
-      set({ beds: data.beds || { ...data, available } });
+      const { data } = await api.put(`/hospital/${hospitalId}/beds`, { availableBeds });
+      set({ hospital: data });
       toast.success('Bed count updated');
-    } catch (error) {
+    } catch {
       toast.error('Failed to update beds');
     }
   },
 
+  // Fetch emergencies assigned to this hospital
   fetchIncomingPatients: async () => {
     try {
-      const { data } = await api.get('/hospital/patients/incoming');
-      set({ incomingPatients: data.patients || data });
-    } catch (error) {
-      toast.error('Failed to fetch patients');
+      const { data } = await api.get('/hospital/emergencies');
+      set({ incomingPatients: data });
+    } catch {
+      toast.error('Failed to fetch incoming patients');
     }
   },
 
+  // Accept an emergency
   acceptPatient: async (emergencyId) => {
     try {
-      await api.post('/hospital/patients/accept', { emergencyId });
-      toast.success('Patient accepted');
+      const { data } = await api.put(`/hospital/emergency/${emergencyId}/accept`);
       set((state) => ({
-        incomingPatients: state.incomingPatients.filter((p) => p._id !== emergencyId),
-        beds: { ...state.beds, available: Math.max(0, state.beds.available - 1) },
+        incomingPatients: state.incomingPatients.map((p) =>
+          p._id === data._id ? data : p
+        ),
       }));
-    } catch (error) {
+      toast.success('Patient accepted');
+    } catch {
       toast.error('Failed to accept patient');
     }
   },
 
+  // Reject an emergency
   rejectPatient: async (emergencyId) => {
     try {
-      await api.post('/hospital/patients/reject', { emergencyId });
-      toast.info('Patient rejected');
+      const { data } = await api.put(`/hospital/emergency/${emergencyId}/reject`);
       set((state) => ({
-        incomingPatients: state.incomingPatients.filter((p) => p._id !== emergencyId),
+        incomingPatients: state.incomingPatients.map((p) =>
+          p._id === data._id ? data : p
+        ),
       }));
-    } catch (error) {
+      toast.info('Patient rejected');
+    } catch {
       toast.error('Failed to reject patient');
     }
   },
 
+  // Socket: incoming patient
   addIncomingPatient: (patient) => {
     set((state) => ({
       incomingPatients: [patient, ...state.incomingPatients],
     }));
+    toast.warning('New incoming patient!');
   },
 }));
 
