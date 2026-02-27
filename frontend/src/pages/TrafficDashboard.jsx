@@ -17,6 +17,7 @@ import useLocationStore from '../stores/locationStore';
 import socket, { connectSocket } from '../lib/socket';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import LiveMap from '../components/common/LiveMap';
+import { useSearch } from '../lib/SearchContext';
 
 export default function TrafficDashboard() {
   const {
@@ -124,9 +125,22 @@ export default function TrafficDashboard() {
     };
   }, [isOnDuty, authUser]);
 
+  const { searchQuery } = useSearch();
+
   // ── Derived state ──
-  const pendingAlerts = activeAlerts.filter((a) => !a.routeCleared);
-  const clearedAlerts = activeAlerts.filter((a) => a.routeCleared);
+  const searchFiltered = useMemo(() => {
+    if (!searchQuery.trim()) return activeAlerts;
+    const q = searchQuery.toLowerCase();
+    return activeAlerts.filter((a) =>
+      (a.citizenName || '').toLowerCase().includes(q) ||
+      (a.description || '').toLowerCase().includes(q) ||
+      (a.status || '').toLowerCase().includes(q) ||
+      (a.priority || '').toLowerCase().includes(q)
+    );
+  }, [activeAlerts, searchQuery]);
+
+  const pendingAlerts = searchFiltered.filter((a) => !a.routeCleared);
+  const clearedAlerts = searchFiltered.filter((a) => a.routeCleared);
 
   // ── Map markers ──
   const mapMarkers = useMemo(() => {

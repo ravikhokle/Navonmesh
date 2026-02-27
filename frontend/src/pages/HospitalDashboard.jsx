@@ -19,6 +19,7 @@ import useLocationStore from '../stores/locationStore';
 import socket, { connectSocket } from '../lib/socket';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import LiveMap from '../components/common/LiveMap';
+import { useSearch } from '../lib/SearchContext';
 
 export default function HospitalDashboard() {
   const {
@@ -35,6 +36,20 @@ export default function HospitalDashboard() {
   } = useHospitalStore();
 
   const { liveLocations, updateLocation, fetchLiveLocations, removeLocation } = useLocationStore();
+
+  const { searchQuery } = useSearch();
+
+  const filteredPatients = useMemo(() => {
+    if (!searchQuery.trim()) return incomingPatients;
+    const q = searchQuery.toLowerCase();
+    return incomingPatients.filter((p) =>
+      (p.citizenName || '').toLowerCase().includes(q) ||
+      (p.citizenPhone || '').toLowerCase().includes(q) ||
+      (p.description || '').toLowerCase().includes(q) ||
+      (p.hospitalResponse || '').toLowerCase().includes(q) ||
+      (p.priority || '').toLowerCase().includes(q)
+    );
+  }, [incomingPatients, searchQuery]);
 
   const [bedInput, setBedInput] = useState(null);
   const [showRegister, setShowRegister] = useState(false);
@@ -75,6 +90,15 @@ export default function HospitalDashboard() {
     socket.on('location-update', updateLocation);
     socket.on('location-cleared', (data) => removeLocation(data?.userId));
 
+    // Real-time: refresh own hospital data when any hospital is updated
+    // (only updates if the updated hospital matches our own)
+    socket.on('hospital-updated', (updatedHospital) => {
+      const myHospital = useHospitalStore.getState().hospital;
+      if (myHospital && updatedHospital._id === myHospital._id) {
+        useHospitalStore.setState({ hospital: updatedHospital });
+      }
+    });
+
     return () => {
       socket.off('emergency-updated');
       socket.off('incoming-patient');
@@ -82,6 +106,7 @@ export default function HospitalDashboard() {
       socket.off('route-cleared');
       socket.off('location-update');
       socket.off('location-cleared');
+      socket.off('hospital-updated');
     };
   }, []);
 
@@ -419,21 +444,21 @@ export default function HospitalDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <UserPlus size={18} className="text-red-500" />
             Incoming Patients
-            {incomingPatients.filter((p) => p.hospitalResponse === 'pending').length > 0 && (
+            {filteredPatients.filter((p) => p.hospitalResponse === 'pending').length > 0 && (
               <span className="ml-auto badge-critical">
-                {incomingPatients.filter((p) => p.hospitalResponse === 'pending').length}
+                {filteredPatients.filter((p) => p.hospitalResponse === 'pending').length}
               </span>
             )}
           </h3>
 
-          {incomingPatients.length === 0 ? (
+          {filteredPatients.length === 0 ? (
             <div className="text-center py-8">
               <UserMinus size={40} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-gray-500">No incoming patients</p>
+              <p className="text-gray-500">{searchQuery ? 'No patients match your search' : 'No incoming patients'}</p>
             </div>
           ) : (
             <div className="space-y-3 max-h-96 overflow-y-auto">
-              {incomingPatients.map((patient, idx) => (
+              {filteredPatients.map((patient, idx) => (
                 <div
                   key={patient._id || idx}
                   className="border border-gray-100 rounded-xl p-4 hover:border-red-200 transition-colors"

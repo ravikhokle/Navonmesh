@@ -66,15 +66,17 @@ export const updateBeds = async (req, res) => {
   try {
     const { availableBeds } = req.body;
 
-    const hospital = await Hospital.findByIdAndUpdate(
-      req.params.id,
-      { availableBeds },
-      { new: true }
-    );
-
+    // Verify the hospital belongs to the logged-in user
+    const hospital = await Hospital.findById(req.params.id);
     if (!hospital) {
       return res.status(404).json({ message: "Hospital not found" });
     }
+    if (String(hospital.managedBy) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Not authorized to update this hospital" });
+    }
+
+    hospital.availableBeds = availableBeds;
+    await hospital.save();
 
     const io = req.app.get("io");
     io.emit("hospital-updated", hospital);

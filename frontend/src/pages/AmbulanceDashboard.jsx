@@ -17,6 +17,7 @@ import socket, { connectSocket } from '../lib/socket';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import LiveMap from '../components/common/LiveMap';
 import StatusBadge from '../components/common/StatusBadge';
+import { useSearch } from '../lib/SearchContext';
 
 // Next-status map for the action button
 const STATUS_NEXT = {
@@ -212,8 +213,22 @@ export default function AmbulanceDashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myLocation, activeEmergency, liveLocations]);
 
-  const completed = assignedEmergencies.filter((e) => e.status === 'completed');
-  const active    = assignedEmergencies.filter((e) => e.status !== 'completed');
+  const { searchQuery } = useSearch();
+
+  const searchFiltered = useMemo(() => {
+    if (!searchQuery.trim()) return assignedEmergencies;
+    const q = searchQuery.toLowerCase();
+    return assignedEmergencies.filter((e) =>
+      (e.citizenName || '').toLowerCase().includes(q) ||
+      (e.citizenPhone || '').toLowerCase().includes(q) ||
+      (e.description || '').toLowerCase().includes(q) ||
+      (e.status || '').toLowerCase().includes(q) ||
+      (e.priority || '').toLowerCase().includes(q)
+    );
+  }, [assignedEmergencies, searchQuery]);
+
+  const completed = searchFiltered.filter((e) => e.status === 'completed');
+  const active    = searchFiltered.filter((e) => e.status !== 'completed');
 
   if (isLoading && assignedEmergencies.length === 0) return <LoadingSpinner />;
 

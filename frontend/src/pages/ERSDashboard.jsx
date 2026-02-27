@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import {
   AlertTriangle,
@@ -27,6 +27,7 @@ import socket, { connectSocket } from '../lib/socket';
 import StatusBadge from '../components/common/StatusBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import LiveMap from '../components/common/LiveMap';
+import { useSearch } from '../lib/SearchContext';
 
 export default function ERSDashboard() {
   const {
@@ -50,6 +51,20 @@ export default function ERSDashboard() {
   } = useEmergencyStore();
 
   const { liveLocations, updateLocation, fetchLiveLocations, removeLocation } = useLocationStore();
+  const { searchQuery } = useSearch();
+
+  // ── Filtered emergencies by search ──
+  const filteredEmergencies = useMemo(() => {
+    if (!searchQuery.trim()) return emergencies;
+    const q = searchQuery.toLowerCase();
+    return emergencies.filter((e) =>
+      (e.citizenName || '').toLowerCase().includes(q) ||
+      (e.citizenPhone || '').toLowerCase().includes(q) ||
+      (e.description || '').toLowerCase().includes(q) ||
+      (e.status || '').toLowerCase().includes(q) ||
+      (e.priority || '').toLowerCase().includes(q)
+    );
+  }, [emergencies, searchQuery]);
 
   // ── Manual entry modal state ──
   const [showManualModal, setShowManualModal] = useState(false);
@@ -417,14 +432,14 @@ export default function ERSDashboard() {
           </button>
         </div>
 
-        {emergencies.length === 0 ? (
+        {filteredEmergencies.length === 0 ? (
           <div className="text-center py-12">
             <AlertTriangle size={40} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-500">No active emergencies</p>
+            <p className="text-gray-500">{searchQuery ? 'No emergencies match your search' : 'No active emergencies'}</p>
           </div>
         ) : (
           <div className="space-y-6">
-            {emergencies.map((emergency) => (
+            {filteredEmergencies.map((emergency) => (
               <EmergencyCard
                 key={emergency._id}
                 emergency={emergency}

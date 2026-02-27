@@ -35,8 +35,7 @@ const useHospitalStore = create((set) => ({
       const { data } = await api.get('/hospital/me');
       set({ hospital: data, isLoading: false });
     } catch {
-      set({ isLoading: false });
-      toast.error('Failed to fetch hospital data');
+      set({ hospital: null, isLoading: false });
     }
   },
 
@@ -98,6 +97,9 @@ const useHospitalStore = create((set) => ({
     }));
     toast.warning('New incoming patient!');
   },
+
+  // Reset store (call on logout)
+  reset: () => set({ hospital: null, incomingPatients: [], isLoading: false }),
 }));
 
 export default useHospitalStore;

@@ -126,3 +126,48 @@ export const getMe = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// @desc    Update current user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+export const updateProfile = async (req, res) => {
+  try {
+    const { name, email, city } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if new email is already taken by another user
+    if (email && email !== user.email) {
+      const existing = await User.findOne({ email });
+      if (existing) {
+        return res.status(409).json({ message: "Email already in use" });
+      }
+      if (!/^\S+@\S+\.\S+$/.test(email)) {
+        return res.status(400).json({ message: "Please provide a valid email" });
+      }
+      user.email = email;
+    }
+
+    if (name) user.name = name.trim();
+    if (city) user.city = city.trim();
+
+    await user.save();
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      city: user.city,
+      isOnDuty: user.isOnDuty,
+    });
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((e) => e.message);
+      return res.status(400).json({ message: messages.join(", ") });
+    }
+    res.status(500).json({ message: "Server error" });
+  }
+};

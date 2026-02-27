@@ -10,6 +10,8 @@ import {
   X,
   Shield,
   Home,
+  Pencil,
+  Save,
 } from 'lucide-react';
 import { useState } from 'react';
 import useAuthStore from '../../stores/authStore';
@@ -24,7 +26,9 @@ const roleNavItems = {
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, logout } = useAuthStore();
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', city: '' });
+  const { user, logout, updateProfile, isLoading } = useAuthStore();
   const navigate = useNavigate();
   const role = user?.role || 'citizen';
   const navItems = roleNavItems[role] || roleNavItems.citizen;
@@ -34,6 +38,23 @@ export default function Sidebar() {
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const openProfile = () => {
+    setProfileForm({
+      name: user?.name || '',
+      email: user?.email || '',
+      city: user?.city || '',
+    });
+    setShowProfile(true);
+  };
+
+  const handleProfileSave = async (e) => {
+    e.preventDefault();
+    try {
+      await updateProfile(profileForm);
+      setShowProfile(false);
+    } catch { /* toasted by store */ }
   };
 
   return (
@@ -126,6 +147,13 @@ export default function Sidebar() {
                   <p className="text-sm font-medium text-gray-900 truncate">{user?.name || 'User'}</p>
                   <p className="text-xs text-gray-500 capitalize">{role}</p>
                 </div>
+                <button
+                  onClick={openProfile}
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                  title="Edit Profile"
+                >
+                  <Pencil size={14} />
+                </button>
               </div>
               <button
                 onClick={handleLogout}
@@ -138,6 +166,88 @@ export default function Sidebar() {
           )}
         </div>
       </aside>
+
+      {/* ── Profile Edit Modal ── */}
+      {showProfile && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-50"
+            onClick={() => setShowProfile(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-gray-900">Edit Profile</h3>
+                <button
+                  onClick={() => setShowProfile(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X size={18} className="text-gray-500" />
+                </button>
+              </div>
+
+              <form onSubmit={handleProfileSave} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={profileForm.city}
+                    onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <input
+                    type="text"
+                    value={user?.role || ''}
+                    disabled
+                    className="w-full border border-gray-100 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowProfile(false)}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Save size={14} />
+                    {isLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }

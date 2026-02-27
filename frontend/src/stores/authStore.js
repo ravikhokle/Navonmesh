@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import api from '../lib/axios';
 import { toast } from 'react-toastify';
+import useHospitalStore from './hospitalStore';
 
 const storedUser = localStorage.getItem('emergex_user');
 
@@ -45,7 +46,23 @@ const useAuthStore = create((set) => ({
     localStorage.removeItem('emergex_token');
     localStorage.removeItem('emergex_user');
     set({ user: null, token: null });
+    useHospitalStore.getState().reset();
     toast.info('Logged out');
+  },
+
+  updateProfile: async (profileData) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.put('/auth/profile', profileData);
+      localStorage.setItem('emergex_user', JSON.stringify(data));
+      set({ user: data, isLoading: false });
+      toast.success('Profile updated successfully!');
+      return data;
+    } catch (error) {
+      set({ isLoading: false });
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+      throw error;
+    }
   },
 
   isAuthenticated: () => {
