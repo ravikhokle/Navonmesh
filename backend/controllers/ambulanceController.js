@@ -48,6 +48,7 @@ export const updateEmergencyStatus = async (req, res) => {
 
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
+    io.emit("status-changed", { emergency, status });
 
     res.json(emergency);
   } catch (error) {

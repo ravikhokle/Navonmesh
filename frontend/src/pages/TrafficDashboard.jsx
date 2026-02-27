@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
+import playAlertSound from '../lib/alertAudio';
 import {
   Shield,
   ShieldCheck,
@@ -53,15 +54,32 @@ export default function TrafficDashboard() {
 
     socket.on('traffic-alert', (data) => {
       addAlert(data);
+      playAlertSound();
       toast.warning('🚦 New emergency route alert!', { autoClose: 8000 });
     });
     socket.on('emergency-updated', () => fetchAlerts());
+
+    // Real-time: ambulance status changes
+    socket.on('status-changed', ({ status }) => {
+      fetchAlerts();
+      const labels = { en_route: 'Ambulance en route', picked_up: 'Patient picked up', hospital_notified: 'Arrived at hospital', completed: 'Emergency completed' };
+      toast.info(`🚑 ${labels[status] || status}`, { autoClose: 6000 });
+    });
+
+    // Real-time: priority changed
+    socket.on('priority-changed', () => {
+      fetchAlerts();
+      toast.warning('⚠️ Emergency priority updated!', { autoClose: 5000 });
+    });
+
     socket.on('location-update', updateLocation);
     socket.on('location-cleared', (data) => removeLocation(data?.userId));
 
     return () => {
       socket.off('traffic-alert');
       socket.off('emergency-updated');
+      socket.off('status-changed');
+      socket.off('priority-changed');
       socket.off('location-update');
       socket.off('location-cleared');
     };

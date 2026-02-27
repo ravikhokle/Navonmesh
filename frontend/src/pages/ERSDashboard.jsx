@@ -115,6 +115,32 @@ export default function ERSDashboard() {
     });
     socket.on('emergency-updated', (data) => updateEmergency(data));
 
+    // Real-time: ambulance status changes (en_route, picked_up, completed)
+    socket.on('status-changed', ({ emergency, status }) => {
+      updateEmergency(emergency);
+      const labels = { en_route: 'Ambulance en route', picked_up: 'Patient picked up', hospital_notified: 'Arrived at hospital', completed: 'Emergency completed' };
+      toast.info(`🚑 ${labels[status] || status}`, { autoClose: 6000 });
+    });
+
+    // Real-time: hospital accepted/rejected
+    socket.on('hospital-response', ({ emergency, response }) => {
+      updateEmergency(emergency);
+      const icon = response === 'accepted' ? '✅' : '❌';
+      toast.info(`${icon} Hospital ${response} the patient`, { autoClose: 6000 });
+    });
+
+    // Real-time: route cleared by traffic
+    socket.on('route-cleared', () => {
+      fetchEmergencies();
+      toast.success('🚦 Route has been cleared!', { autoClose: 5000 });
+    });
+
+    // Real-time: priority changed
+    socket.on('priority-changed', (data) => {
+      updateEmergency(data);
+      toast.warning(`⚠️ Priority changed to ${data.priority}`, { autoClose: 5000 });
+    });
+
     // Real-time: when any driver/officer toggles duty, refresh the lists
     socket.on('duty-changed', (data) => {
       if (data.role === 'ambulance') fetchAvailableAmbulances();
@@ -137,6 +163,10 @@ export default function ERSDashboard() {
     return () => {
       socket.off('new-emergency');
       socket.off('emergency-updated');
+      socket.off('status-changed');
+      socket.off('hospital-response');
+      socket.off('route-cleared');
+      socket.off('priority-changed');
       socket.off('duty-changed');
       socket.off('hospital-added');
       socket.off('hospital-updated');

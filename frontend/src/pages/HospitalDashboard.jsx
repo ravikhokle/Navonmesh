@@ -58,12 +58,28 @@ export default function HospitalDashboard() {
       addIncomingPatient(data);
       toast.info('🏥 New incoming patient assigned!', { autoClose: 7000 });
     });
+
+    // Real-time: ambulance status changes
+    socket.on('status-changed', ({ emergency, status }) => {
+      fetchIncomingPatients();
+      const labels = { en_route: 'Ambulance en route', picked_up: 'Patient picked up', hospital_notified: 'Ambulance arrived', completed: 'Emergency completed' };
+      toast.info(`🚑 ${labels[status] || status}`, { autoClose: 6000 });
+    });
+
+    // Real-time: route cleared
+    socket.on('route-cleared', () => {
+      fetchIncomingPatients();
+      toast.success('🚦 Route cleared for incoming ambulance!', { autoClose: 5000 });
+    });
+
     socket.on('location-update', updateLocation);
     socket.on('location-cleared', (data) => removeLocation(data?.userId));
 
     return () => {
       socket.off('emergency-updated');
       socket.off('incoming-patient');
+      socket.off('status-changed');
+      socket.off('route-cleared');
       socket.off('location-update');
       socket.off('location-cleared');
     };

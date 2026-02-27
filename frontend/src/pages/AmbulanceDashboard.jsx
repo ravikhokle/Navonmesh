@@ -68,13 +68,38 @@ export default function AmbulanceDashboard() {
       addAssignment(data);
       toast.info('🚑 New emergency assigned!', { autoClose: 8000 });
     });
-    socket.on('emergency-updated', (data) => updateEmergency(data));
+    socket.on('emergency-updated', (data) => {
+      updateEmergency(data);
+    });
+
+    // Real-time: hospital accepted/rejected patient
+    socket.on('hospital-response', ({ emergency, response }) => {
+      updateEmergency(emergency);
+      const icon = response === 'accepted' ? '✅' : '❌';
+      toast.info(`${icon} Hospital ${response} the patient`, { autoClose: 6000 });
+    });
+
+    // Real-time: route cleared by traffic police
+    socket.on('route-cleared', () => {
+      fetchAssignedEmergencies();
+      toast.success('🚦 Route has been cleared!', { autoClose: 5000 });
+    });
+
+    // Real-time: priority changed
+    socket.on('priority-changed', (data) => {
+      updateEmergency(data);
+      toast.warning(`⚠️ Priority updated to ${data.priority}`, { autoClose: 5000 });
+    });
+
     socket.on('location-update', updateLocation);
     socket.on('location-cleared', (data) => removeLocation(data?.userId));
 
     return () => {
       socket.off('ambulance-assigned');
       socket.off('emergency-updated');
+      socket.off('hospital-response');
+      socket.off('route-cleared');
+      socket.off('priority-changed');
       socket.off('location-update');
       socket.off('location-cleared');
     };

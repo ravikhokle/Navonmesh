@@ -83,6 +83,7 @@ export const assignAmbulance = async (req, res) => {
 
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
+    io.emit("ambulance-assigned", emergency);
 
     res.json(emergency);
   } catch (error) {
@@ -109,6 +110,7 @@ export const setPriority = async (req, res) => {
 
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
+    io.emit("priority-changed", emergency);
 
     res.json(emergency);
   } catch (error) {
@@ -152,6 +154,7 @@ export const notifyHospital = async (req, res) => {
 
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
+    io.emit("incoming-patient", emergency);
 
     res.json(emergency);
   } catch (error) {
@@ -234,6 +237,12 @@ export const sendAlertAll = async (req, res) => {
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
 
+    if (ambulanceId) {
+      io.emit("ambulance-assigned", emergency);
+    }
+    if (hospitalId) {
+      io.emit("incoming-patient", emergency);
+    }
     if (trafficId) {
       io.emit("traffic-alert", { emergencyId: emergency._id, trafficId });
     }

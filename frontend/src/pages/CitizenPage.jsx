@@ -133,14 +133,39 @@ export default function CitizenPage() {
 
     const handleLocationCleared = (data) => removeLocation(data?.userId);
 
+    // Real-time: ambulance status change (direct event, no delay)
+    const handleStatusChanged = ({ emergency, status }) => {
+      setTrackedEmergency((prev) => {
+        if (!prev || prev._id !== emergency._id) return prev;
+        return emergency;
+      });
+      const labels = { en_route: '🚑 Ambulance is on the way!', picked_up: '🏥 Patient picked up, heading to hospital', hospital_notified: '🏥 Arrived at the hospital', completed: '✅ Emergency completed. Stay safe!' };
+      if (labels[status]) {
+        toast.info(labels[status], { autoClose: 9000 });
+      }
+    };
+
+    // Real-time: hospital accepted/rejected
+    const handleHospitalResponse = ({ emergency, response }) => {
+      setTrackedEmergency((prev) => {
+        if (!prev || prev._id !== emergency._id) return prev;
+        return emergency;
+      });
+      toast.info(response === 'accepted' ? '✅ Hospital has accepted you!' : '❌ Hospital could not accept, ERS is reassigning', { autoClose: 8000 });
+    };
+
     socket.on('location-update', handleLocationUpdate);
     socket.on('emergency-updated', handleEmergencyUpdated);
     socket.on('location-cleared', handleLocationCleared);
+    socket.on('status-changed', handleStatusChanged);
+    socket.on('hospital-response', handleHospitalResponse);
 
     return () => {
       socket.off('location-update', handleLocationUpdate);
       socket.off('emergency-updated', handleEmergencyUpdated);
       socket.off('location-cleared', handleLocationCleared);
+      socket.off('status-changed', handleStatusChanged);
+      socket.off('hospital-response', handleHospitalResponse);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

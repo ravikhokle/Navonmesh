@@ -104,6 +104,7 @@ export const acceptEmergency = async (req, res) => {
 
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
+    io.emit("hospital-response", { emergency, response: "accepted" });
 
     res.json(emergency);
   } catch (error) {
@@ -130,6 +131,7 @@ export const rejectEmergency = async (req, res) => {
 
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
+    io.emit("hospital-response", { emergency, response: "rejected" });
 
     res.json(emergency);
   } catch (error) {
