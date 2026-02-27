@@ -8,7 +8,7 @@ export const updateEmergencyStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
-    const validStatuses = ["en_route", "picked_up", "completed"];
+    const validStatuses = ["en_route", "picked_up", "hospital_notified", "completed"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         message: `Invalid status. Must be one of: ${validStatuses.join(", ")}`,
@@ -30,9 +30,10 @@ export const updateEmergencyStatus = async (req, res) => {
     // Send WhatsApp update to citizen if phone is available
     if (emergency.citizenPhone) {
       const statusMessages = {
-        en_route: "🚑 An ambulance is on its way to your location.",
-        picked_up: "🏥 Patient picked up. Heading to hospital.",
-        completed: "✅ Emergency completed. Stay safe!",
+        en_route:          "🚑 An ambulance is on its way to your location.",
+        picked_up:         "🏥 Patient picked up. Heading to hospital.",
+        hospital_notified: "🏥 Ambulance has arrived at the hospital.",
+        completed:         "✅ Emergency completed. Stay safe!",
       };
 
       try {
