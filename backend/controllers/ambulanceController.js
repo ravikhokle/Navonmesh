@@ -79,7 +79,25 @@ export const toggleDuty = async (req, res) => {
   try {
     const user = req.user;
     user.isOnDuty = !user.isOnDuty;
+
+    // Update location if provided (from browser geolocation)
+    if (req.body.latitude && req.body.longitude) {
+      user.currentLocation = {
+        type: "Point",
+        coordinates: [parseFloat(req.body.longitude), parseFloat(req.body.latitude)],
+      };
+    }
+
     await user.save();
+
+    // Emit duty change so ERS dashboard can refresh in real-time
+    const io = req.app.get("io");
+    io.emit("duty-changed", {
+      userId: user._id,
+      role: user.role,
+      name: user.name,
+      isOnDuty: user.isOnDuty,
+    });
 
     res.json({ isOnDuty: user.isOnDuty });
   } catch (error) {

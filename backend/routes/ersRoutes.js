@@ -5,6 +5,7 @@ import {
   setPriority,
   notifyHospital,
   notifyTraffic,
+  sendAlertAll,
   getAvailableAmbulances,
   getHospitals,
   getTrafficUsers,
@@ -23,5 +24,6 @@ router.put("/emergency/:id/assign-ambulance", assignAmbulance);
 router.put("/emergency/:id/priority", setPriority);
 router.put("/emergency/:id/notify-hospital", notifyHospital);
 router.put("/emergency/:id/notify-traffic", notifyTraffic);
+router.put("/emergency/:id/send-alert", sendAlertAll);
 
 export default router;

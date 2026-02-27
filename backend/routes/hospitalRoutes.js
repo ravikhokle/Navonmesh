@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  registerHospital,
   updateBeds,
   acceptEmergency,
   rejectEmergency,
@@ -13,6 +14,7 @@ const router = express.Router();
 router.use(protect, authorize("hospital"));
 
 router.get("/me", getMyHospital);
+router.post("/register", registerHospital);
 router.get("/emergencies", getHospitalEmergencies);
 router.put("/:id/beds", updateBeds);
 router.put("/emergency/:id/accept", acceptEmergency);

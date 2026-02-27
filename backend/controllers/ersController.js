@@ -27,6 +27,12 @@ export const assignAmbulance = async (req, res) => {
   try {
     const { ambulanceId } = req.body;
 
+    // Verify the ambulance driver is on duty
+    const driver = await User.findById(ambulanceId);
+    if (!driver || !driver.isOnDuty) {
+      return res.status(400).json({ message: "This ambulance driver is not on duty" });
+    }
+
     const emergency = await Emergency.findByIdAndUpdate(
       req.params.id,
       {
@@ -141,6 +147,79 @@ export const notifyTraffic = async (req, res) => {
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
     io.emit("traffic-alert", { emergencyId: emergency._id, trafficId });
+
+    res.json(emergency);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Send alert to all — assign ambulance, hospital, traffic in one go
+// @route   PUT /api/ers/emergency/:id/send-alert
+// @access  Private (ers)
+export const sendAlertAll = async (req, res) => {
+  try {
+    const { ambulanceId, hospitalId, trafficId, priority } = req.body;
+
+    // Verify on-duty status for ambulance and traffic before assigning
+    if (ambulanceId) {
+      const driver = await User.findById(ambulanceId);
+      if (!driver || !driver.isOnDuty) {
+        return res.status(400).json({ message: "Ambulance driver is not on duty" });
+      }
+    }
+    if (trafficId) {
+      const officer = await User.findById(trafficId);
+      if (!officer || !officer.isOnDuty) {
+        return res.status(400).json({ message: "Traffic officer is not on duty" });
+      }
+    }
+
+    const updateFields = { assignedERS: req.user._id };
+    if (ambulanceId) {
+      updateFields.assignedAmbulance = ambulanceId;
+      updateFields.status = "assigned";
+    }
+    if (hospitalId) {
+      updateFields.assignedHospital = hospitalId;
+      if (!ambulanceId) updateFields.status = "hospital_notified";
+    }
+    if (trafficId) updateFields.assignedTraffic = trafficId;
+    if (priority) updateFields.priority = priority;
+
+    const emergency = await Emergency.findByIdAndUpdate(
+      req.params.id,
+      updateFields,
+      { new: true }
+    )
+      .populate("assignedAmbulance", "name")
+      .populate("assignedHospital", "name");
+
+    if (!emergency) {
+      return res.status(404).json({ message: "Emergency not found" });
+    }
+
+    const io = req.app.get("io");
+    io.emit("emergency-updated", emergency);
+
+    if (trafficId) {
+      io.emit("traffic-alert", { emergencyId: emergency._id, trafficId });
+    }
+
+    // WhatsApp to hospital if assigned
+    if (hospitalId) {
+      const hospital = await Hospital.findById(hospitalId);
+      if (hospital?.phone) {
+        try {
+          await sendWhatsAppMessage(
+            hospital.phone,
+            `\uD83D\uDEA8 EMERGEX ALERT: Incoming patient "${emergency.citizenName}". Priority: ${emergency.priority}. Please prepare.`
+          );
+        } catch (err) {
+          console.error("WhatsApp notification failed:", err.message);
+        }
+      }
+    }
 
     res.json(emergency);
   } catch (error) {

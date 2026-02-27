@@ -137,6 +137,22 @@ const useEmergencyStore = create((set, get) => ({
     }
   },
 
+  // ── ERS: Send alert to all (assign ambulance + hospital + traffic at once) ──
+  sendAlertAll: async (emergencyId, { ambulanceId, hospitalId, trafficId, priority }) => {
+    try {
+      const { data } = await api.put(`/ers/emergency/${emergencyId}/send-alert`, {
+        ambulanceId: ambulanceId || undefined,
+        hospitalId: hospitalId || undefined,
+        trafficId: trafficId || undefined,
+        priority: priority || undefined,
+      });
+      get().updateEmergency(data);
+      toast.success('Alert sent to all selected units!');
+    } catch (error) {
+      toast.error('Failed to send alert');
+    }
+  },
+
   // ── Socket helpers ──
   addEmergency: (emergency) => {
     set((state) => ({

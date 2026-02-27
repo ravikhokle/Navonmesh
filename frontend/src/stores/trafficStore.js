@@ -17,10 +17,21 @@ const useTrafficStore = create((set) => ({
     }
   },
 
-  // Toggle on/off duty
+  // Toggle on/off duty (sends current location via geolocation API)
   toggleDuty: async () => {
     try {
-      const { data } = await api.put('/traffic/toggle-duty');
+      let latitude = null;
+      let longitude = null;
+      try {
+        const pos = await new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+        );
+        latitude = pos.coords.latitude;
+        longitude = pos.coords.longitude;
+      } catch {
+        // Location not available — proceed without it
+      }
+      const { data } = await api.put('/traffic/toggle-duty', { latitude, longitude });
       set({ isOnDuty: data.isOnDuty });
       toast.success(data.isOnDuty ? 'Now on duty' : 'Now off duty');
     } catch {

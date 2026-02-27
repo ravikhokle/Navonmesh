@@ -1,6 +1,64 @@
 import Hospital from "../models/Hospital.js";
 import Emergency from "../models/Emergency.js";
 
+// @desc    Register / add a hospital (by hospital admin after login)
+// @route   POST /api/hospital/register
+// @access  Private (hospital)
+export const registerHospital = async (req, res) => {
+  try {
+    const { name, city, phone, availableBeds, longitude, latitude } = req.body;
+
+    if (!name || !city) {
+      return res.status(400).json({ message: "Hospital name and city are required" });
+    }
+
+    // Check if this user already manages a hospital
+    const existing = await Hospital.findOne({ managedBy: req.user._id });
+    if (existing) {
+      // Update existing hospital
+      existing.name = name;
+      existing.city = city;
+      if (phone) existing.phone = phone;
+      if (availableBeds !== undefined) existing.availableBeds = availableBeds;
+      if (longitude && latitude) {
+        existing.location = {
+          type: "Point",
+          coordinates: [parseFloat(longitude), parseFloat(latitude)],
+        };
+      }
+      await existing.save();
+
+      const io = req.app.get("io");
+      io.emit("hospital-updated", existing);
+
+      return res.json(existing);
+    }
+
+    // Create new hospital
+    const hospital = await Hospital.create({
+      name,
+      city,
+      phone: phone || "",
+      availableBeds: availableBeds || 0,
+      location: {
+        type: "Point",
+        coordinates: [
+          parseFloat(longitude) || 0,
+          parseFloat(latitude) || 0,
+        ],
+      },
+      managedBy: req.user._id,
+    });
+
+    const io = req.app.get("io");
+    io.emit("hospital-added", hospital);
+
+    res.status(201).json(hospital);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Update bed availability
 // @route   PUT /api/hospital/:id/beds
 // @access  Private (hospital)

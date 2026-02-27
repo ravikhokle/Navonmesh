@@ -7,6 +7,27 @@ const useHospitalStore = create((set) => ({
   incomingPatients: [],
   isLoading: false,
 
+  // Register / add a hospital (hospital admin)
+  registerHospital: async ({ name, city, phone, availableBeds, longitude, latitude }) => {
+    set({ isLoading: true });
+    try {
+      const { data } = await api.post('/hospital/register', {
+        name,
+        city,
+        phone,
+        availableBeds,
+        longitude,
+        latitude,
+      });
+      set({ hospital: data, isLoading: false });
+      toast.success('Hospital registered successfully!');
+      return data;
+    } catch (error) {
+      set({ isLoading: false });
+      toast.error(error.response?.data?.message || 'Failed to register hospital');
+    }
+  },
+
   // Fetch hospital profile for current user
   fetchMyHospital: async () => {
     set({ isLoading: true });

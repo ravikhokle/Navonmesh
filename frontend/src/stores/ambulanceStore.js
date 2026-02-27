@@ -35,10 +35,22 @@ const useAmbulanceStore = create((set) => ({
     }
   },
 
-  // Toggle on-duty
+  // Toggle on-duty (sends current location via geolocation API)
   toggleDuty: async () => {
     try {
-      const { data } = await api.put('/ambulance/toggle-duty');
+      let latitude = null;
+      let longitude = null;
+      // Try to get current position from browser
+      try {
+        const pos = await new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+        );
+        latitude = pos.coords.latitude;
+        longitude = pos.coords.longitude;
+      } catch {
+        // Location not available — proceed without it
+      }
+      const { data } = await api.put('/ambulance/toggle-duty', { latitude, longitude });
       set({ isOnDuty: data.isOnDuty });
       toast.success(data.isOnDuty ? 'Now on duty' : 'Now off duty');
     } catch {
