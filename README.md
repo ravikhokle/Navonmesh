@@ -110,4 +110,57 @@ There are **two paths**:
 
 This map is visible to:
 - **ERS** (central view of all emergencies),  
-- **Hospital** (incoming ambulance for assigned
+- **Hospital** (incoming ambulance for assigned patient),  
+- **Traffic Police** (route monitoring and support),  
+- **Citizen** (if the app has a live‑tracking view).
+
+---
+
+### 4. End‑to‑End Experience
+
+1. **Citizen** feels:
+   - Either a familiar **108 call**, or  
+   - A simple **web‑app SOS** with name + phone form → auto‑dial + GPS sent.  
+2. **ERS** sees:
+   - All emergencies (manual + app‑based) in a single dashboard.  
+   - GPS markers on map, quick assignment tools, and status tracker.  
+3. **Ambulance**:
+   - Gets dispatched emergency.  
+   - Transmits GPS continuously.  
+4. **Hospital**:
+   - Prepares in advance, knowing exact time and route of arrival.  
+5. **Traffic Police**:
+   - Monitors movement and can support clearance.
+
+---
+
+## Key Features
+
+- **Dual‑mode emergency initiation**:
+  - Direct 108 call (no app).  
+  - Emergex web‑app SOS with auto‑dial and automatic GPS.  
+- **Manual + auto‑registration**:
+  - ERS can manually enter details for direct‑call cases.  
+  - App‑based SOS auto‑fills location and basic data.  
+- **Ambulance GPS tracking**:
+  - Real‑time location updates.  
+  - Central map shared with all stakeholders.  
+- **Centralized assignment**:
+  - ERS assigns hospital and ambulance from a single screen.  
+- **Live map sharing**:
+  - Consistent map view for ERS, Hospital, Traffic, Ambulance, and Patient.  
+- **Golden‑hour optimization**:
+  - Faster dispatch, better route visibility, and pre‑alerted hospitals.
+
+---
+
+## Technologies Used (Example)
+
+- **Frontend**: React + Tailwind / Shadcn UI, Framer‑Motion for animations.  
+- **Backend**: Node.js + Express (or NestJS), MongoDB/Mongoose for data.  
+- **GPS / Maps**: Browser `navigator.geolocation` + custom map component (`LiveTrackingMap`).  
+- **Real‑time aspect**: Polling or simple WebSocket style updates for ambulance location.  
+
+---
+
+
