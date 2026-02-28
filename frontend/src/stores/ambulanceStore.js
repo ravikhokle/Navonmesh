@@ -7,6 +7,14 @@ const useAmbulanceStore = create((set) => ({
   isOnDuty: false,
   isLoading: false,
 
+  // Sync on-duty status from server (called on page load to hydrate state)
+  fetchDutyStatus: async () => {
+    try {
+      const { data } = await api.get('/auth/me');
+      set({ isOnDuty: data.isOnDuty ?? false });
+    } catch { /* ignore — socket events will keep it in sync */ }
+  },
+
   // Fetch emergencies assigned to this ambulance
   fetchAssignedEmergencies: async () => {
     set({ isLoading: true });

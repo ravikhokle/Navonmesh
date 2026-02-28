@@ -168,7 +168,8 @@ export const notifyTraffic = async (req, res) => {
 
     const io = req.app.get("io");
     io.emit("emergency-updated", emergency);
-    io.emit("traffic-alert", { emergencyId: emergency._id, trafficId });
+    // Include full emergency so traffic dashboard can display all details immediately
+    io.emit("traffic-alert", { ...emergency.toObject(), trafficId });
 
     res.json(emergency);
   } catch (error) {
@@ -219,9 +220,14 @@ export const sendAlertAll = async (req, res) => {
 
     if (ambulanceId) {
       io.emit("ambulance-assigned", emergency);
+      // Also emit status-changed so ambulance/traffic/hospital dashboards update live
+      io.emit("status-changed", { emergency, status: emergency.status });
     }
     if (hospitalId) {
       io.emit("incoming-patient", emergency);
+    }
+    if (priority) {
+      io.emit("priority-changed", emergency);
     }
 
     res.json(emergency);

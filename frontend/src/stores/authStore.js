@@ -2,8 +2,22 @@ import { create } from 'zustand';
 import api from '../lib/axios';
 import { toast } from 'react-toastify';
 import useHospitalStore from './hospitalStore';
+import { connectSocket, disconnectSocket } from '../lib/socket';
+import socket from '../lib/socket';
 
 const storedUser = localStorage.getItem('emergex_user');
+
+// Helper — join socket rooms for the given user
+function joinSocketRooms(user) {
+  if (!user) return;
+  connectSocket();
+  // Rooms joined after 'connect' event fires (handled in socket.js)
+  // but also emit immediately if already connected
+  if (socket.connected) {
+    if (user.role) socket.emit('join-role', user.role);
+    if (user._id)  socket.emit('join-user', user._id);
+  }
+}
 
 const useAuthStore = create((set) => ({
   user: storedUser ? JSON.parse(storedUser) : null,
@@ -17,6 +31,7 @@ const useAuthStore = create((set) => ({
       localStorage.setItem('emergex_token', data.token);
       localStorage.setItem('emergex_user', JSON.stringify(data.user));
       set({ user: data.user, token: data.token, isLoading: false });
+      joinSocketRooms(data.user);
       toast.success('Login successful!');
       return data.user;
     } catch (error) {
@@ -31,7 +46,7 @@ const useAuthStore = create((set) => ({
     try {
       const { data } = await api.post('/auth/signup', { name, email, password, city, role });
       set({ isLoading: false });
-      toast.success(data.message || 'Account created! Check your email for verification.');
+      toast.success('Account created! You can now sign in.');
       return data;
     } catch (error) {
       set({ isLoading: false });
@@ -45,6 +60,7 @@ const useAuthStore = create((set) => ({
     localStorage.removeItem('emergex_user');
     set({ user: null, token: null });
     useHospitalStore.getState().reset();
+    disconnectSocket();
     toast.info('Logged out');
   },
 

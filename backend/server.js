@@ -69,30 +69,37 @@ app.get("/api/live-locations", (req, res) => {
 
 // Socket.io connection
 io.on("connection", (socket) => {
-  console.log("Client connected:", socket.id);
+  console.log(`[socket] connected: ${socket.id}`);
 
-  // Join role-specific rooms
+  // Join role-specific room (ers, ambulance, hospital, traffic)
   socket.on("join-role", (role) => {
     socket.join(role);
-    console.log(`Socket ${socket.id} joined room: ${role}`);
+    console.log(`[socket] ${socket.id} → room:${role}`);
+  });
+
+  // Join personal user room for targeted notifications
+  socket.on("join-user", (userId) => {
+    if (userId) {
+      socket.join(`user-${userId}`);
+      console.log(`[socket] ${socket.id} → user-${userId}`);
+    }
   });
 
   // Join emergency room for targeted updates (ambulance driver, citizen, hospital)
   socket.on("join-emergency", (emergencyId) => {
     socket.join(`emergency-${emergencyId}`);
-    console.log(`Socket ${socket.id} joined emergency: ${emergencyId}`);
+    console.log(`[socket] ${socket.id} → emergency-${emergencyId}`);
   });
 
   // Real-time location ping from ambulance / traffic officers / citizens
-  // data: { userId, role, name, lat, lng }
   socket.on("update-location", (data) => {
     if (data.userId) {
       liveLocations[data.userId] = { ...data, timestamp: Date.now() };
     }
-    // Broadcast to ALL clients (io.emit) so even ERS connected before ambulance gets updates
+    // Broadcast to ALL clients so every dashboard stays in sync
     io.emit("location-update", data);
 
-    // Auto-assign nearby traffic officers when an ambulance moves (throttled to every 10 s)
+    // Auto-assign nearby traffic officers when ambulance moves (throttled 10 s)
     if (data.role === "ambulance" && data.lat && data.lng && data.userId) {
       const now = Date.now();
       if (!lastAutoAssignCheck[data.userId] || now - lastAutoAssignCheck[data.userId] > 10000) {
@@ -102,19 +109,30 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Remove a user's location from the shared cache and notify all clients
-  // Emitted by ambulance driver when emergency reaches hospital_notified / completed
+  // Remove a user’s location from the shared cache and notify all clients
   socket.on("clear-location", (data) => {
-    if (data?.userId) {
-      delete liveLocations[data.userId];
-    }
+    if (data?.userId) delete liveLocations[data.userId];
     io.emit("location-cleared", { userId: data?.userId });
   });
 
-  socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
+  socket.on("disconnect", (reason) => {
+    console.log(`[socket] disconnected: ${socket.id} (${reason})`);
   });
 });
+
+// Purge stale live-locations every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  let pruned = 0;
+  for (const [uid, loc] of Object.entries(liveLocations)) {
+    if (now - loc.timestamp > 5 * 60 * 1000) {
+      delete liveLocations[uid];
+      io.emit("location-cleared", { userId: uid });
+      pruned++;
+    }
+  }
+  if (pruned > 0) console.log(`[location] purged ${pruned} stale entries`);
+}, 5 * 60 * 1000);
 
 const PORT = process.env.PORT || 5000;
 

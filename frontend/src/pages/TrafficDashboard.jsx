@@ -71,8 +71,13 @@ export default function TrafficDashboard() {
     });
 
     // Real-time: priority changed
-    socket.on('priority-changed', () => {
-      fetchAlerts();
+    socket.on('priority-changed', (data) => {
+      // Update matching alert in-place
+      useTrafficStore.setState((state) => ({
+        activeAlerts: state.activeAlerts.map((a) =>
+          a._id === data._id ? { ...a, priority: data.priority } : a
+        ),
+      }));
       toast.warning('⚠️ Emergency priority updated!', { autoClose: 5000 });
     });
 

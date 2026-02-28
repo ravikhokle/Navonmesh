@@ -20,11 +20,16 @@ export const createEmergency = async (req, res) => {
       description,
     });
 
-    // Emit real-time event to ERS dashboard
-    const io = req.app.get("io");
-    io.emit("new-emergency", emergency);
+    // Populate for ERS so it shows instantly with full data
+    const populated = await Emergency.findById(emergency._id)
+      .populate('assignedAmbulance', 'name currentLocation city')
+      .populate('assignedHospital', 'name location city phone');
 
-    res.status(201).json(emergency);
+    // Emit real-time event to ERS dashboard
+    const io = req.app.get('io');
+    io.emit('new-emergency', populated);
+
+    res.status(201).json(populated);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

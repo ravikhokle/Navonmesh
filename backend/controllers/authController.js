@@ -2,10 +2,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import User, { ALLOWED_ROLES } from "../models/User.js";
 import { generateToken } from "../utils/generateToken.js";
-import {
-  sendVerificationEmail,
-  sendPasswordResetEmail,
-} from "../utils/sendEmail.js";
+import { sendPasswordResetEmail } from "../utils/sendEmail.js";
 
 // @desc    Signup a new user (ERS, Ambulance, Hospital, Traffic only)
 // @route   POST /api/auth/signup
@@ -46,29 +43,30 @@ export const signup = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // --- Create user ---
+    // --- Create user (auto-verified, no email step) ---
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
       role,
       city,
+      isEmailVerified: true,
     });
 
-    // --- Send verification email ---
-    const verificationToken = user.createEmailVerificationToken();
-    await user.save({ validateBeforeSave: false });
-
-    try {
-      await sendVerificationEmail(user.email, verificationToken);
-    } catch (err) {
-      console.error("Verification email failed:", err.message);
-    }
-
-    // Do NOT return a JWT — user must verify email first
+    // Return token immediately so user can start working
+    const token = generateToken(user._id, user.role);
     res.status(201).json({
-      message: "Account created! Please check your email to verify your account before logging in.",
-      email: user.email,
+      message: "Account created successfully!",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        city: user.city,
+        isOnDuty: user.isOnDuty,
+        isEmailVerified: true,
+      },
+      token,
     });
   } catch (error) {
     // Handle Mongoose validation errors
@@ -102,15 +100,6 @@ export const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
-    }
-
-    // --- Check email verification ---
-    if (!user.isEmailVerified) {
-      return res.status(403).json({
-        message: "Please verify your email before logging in. Check your inbox for the verification link.",
-        needsVerification: true,
-        email: user.email,
-      });
     }
 
     const token = generateToken(user._id, user.role);
@@ -167,7 +156,6 @@ export const updateProfile = async (req, res) => {
         return res.status(400).json({ message: "Please provide a valid email" });
       }
       user.email = email;
-      user.isEmailVerified = false; // Re-verify if email changes
     }
 
     if (name) user.name = name.trim();
