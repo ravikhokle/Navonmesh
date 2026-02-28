@@ -230,6 +230,12 @@ export const sendAlertAll = async (req, res) => {
       io.emit("priority-changed", emergency);
     }
 
+    // Notify ALL on-duty traffic officers — they need to clear the route
+    const onDutyTraffic = await User.find({ role: "traffic", isOnDuty: true }).select("_id");
+    for (const officer of onDutyTraffic) {
+      io.emit("traffic-alert", { ...emergency.toObject(), trafficId: officer._id.toString() });
+    }
+
     res.json(emergency);
   } catch (error) {
     res.status(500).json({ message: error.message });

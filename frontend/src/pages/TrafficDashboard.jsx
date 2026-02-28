@@ -54,11 +54,15 @@ export default function TrafficDashboard() {
     connectSocket();
 
     socket.on('traffic-alert', (data) => {
-      // Only respond if this alert is for the current user
-      if (data.trafficId === authUser?._id) {
+      // Show alert to this traffic officer if:
+      // 1. Alert is specifically targeted at them (trafficId matches), OR
+      // 2. No specific trafficId (broadcast to all traffic officers)
+      const myId = authUser?._id || authUser?.id;
+      if (!data.trafficId || data.trafficId === String(myId)) {
+        addAlert(data);
         fetchAlerts();
         playAlertSound();
-        toast.warning('🚦 New emergency route alert!', { autoClose: 8000 });
+        toast.warning('🚦 New emergency route alert! Clear the route immediately.', { autoClose: 10000 });
       }
     });
     socket.on('emergency-updated', () => fetchAlerts());
