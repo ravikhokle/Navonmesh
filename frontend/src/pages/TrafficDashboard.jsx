@@ -177,8 +177,10 @@ export default function TrafficDashboard() {
       if (['assigned', 'en_route'].includes(alert.status) && alert.location?.coordinates) {
         routes.push({
           origin,
-          destination: { lat: alert.location.coordinates[1], lng: alert.location.coordinates[0] },
-          color: '#1a73e8',
+          destination:      { lat: alert.location.coordinates[1], lng: alert.location.coordinates[0] },
+          color:            '#1a73e8',
+          originLabel:      `Ambulance: ${alert.assignedAmbulance?.name ?? 'Ambulance'}`,
+          destinationLabel: `Patient: ${alert.citizenName ?? 'Emergency'}`,
         });
       } else if (alert.status === 'picked_up' && alert.assignedHospital?.location?.coordinates) {
         routes.push({
@@ -187,7 +189,9 @@ export default function TrafficDashboard() {
             lat: alert.assignedHospital.location.coordinates[1],
             lng: alert.assignedHospital.location.coordinates[0],
           },
-          color: '#0f9d58',
+          color:            '#0f9d58',
+          originLabel:      `Ambulance: ${alert.assignedAmbulance?.name ?? 'Ambulance'}`,
+          destinationLabel: alert.assignedHospital?.name ?? 'Hospital',
         });
       }
     });
