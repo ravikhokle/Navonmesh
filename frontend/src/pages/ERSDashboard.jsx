@@ -144,8 +144,12 @@ export default function ERSDashboard() {
     });
 
     // Real-time: route cleared by traffic
-    socket.on('route-cleared', () => {
-      fetchEmergencies();
+    socket.on('route-cleared', ({ emergencyId } = {}) => {
+      if (emergencyId) {
+        const current = useEmergencyStore.getState().emergencies;
+        const found = current.find((e) => e._id === emergencyId);
+        if (found) updateEmergency({ ...found, routeCleared: true });
+      }
       toast.success('🚦 Route has been cleared!', { autoClose: 5000 });
     });
 
@@ -170,9 +174,16 @@ export default function ERSDashboard() {
     socket.on('location-update', updateLocation);
     socket.on('location-cleared', (data) => removeLocation(data?.userId));
 
-    // Real-time: when a hospital is registered or updated, refresh hospitals list
+    // Real-time: hospital registered or bed count updated
     socket.on('hospital-added', () => fetchAvailableHospitals());
-    socket.on('hospital-updated', () => fetchAvailableHospitals());
+    socket.on('hospital-updated', (updatedHospital) => {
+      // Update the hospital in the available list in-place
+      useEmergencyStore.setState((state) => ({
+        availableHospitals: state.availableHospitals.some((h) => h._id === updatedHospital._id)
+          ? state.availableHospitals.map((h) => (h._id === updatedHospital._id ? updatedHospital : h))
+          : [...state.availableHospitals, updatedHospital],
+      }));
+    });
 
     return () => {
       socket.off('new-emergency');

@@ -32,6 +32,7 @@ export default function HospitalDashboard() {
     acceptPatient,
     rejectPatient,
     addIncomingPatient,
+    updateIncomingPatient,
     isLoading,
   } = useHospitalStore();
 
@@ -68,7 +69,10 @@ export default function HospitalDashboard() {
     fetchLiveLocations();
     connectSocket();
 
-    socket.on('emergency-updated', () => fetchIncomingPatients());
+    socket.on('emergency-updated', (data) => {
+      // Update in-place without a full server round-trip
+      updateIncomingPatient(data);
+    });
     socket.on('incoming-patient', (data) => {
       addIncomingPatient(data);
       toast.info('🏥 New incoming patient assigned!', { autoClose: 7000 });
@@ -76,14 +80,18 @@ export default function HospitalDashboard() {
 
     // Real-time: ambulance status changes
     socket.on('status-changed', ({ emergency, status }) => {
-      fetchIncomingPatients();
+      updateIncomingPatient(emergency);
       const labels = { en_route: 'Ambulance en route', picked_up: 'Patient picked up', hospital_notified: 'Ambulance arrived', completed: 'Emergency completed' };
       toast.info(`🚑 ${labels[status] || status}`, { autoClose: 6000 });
     });
 
     // Real-time: route cleared
-    socket.on('route-cleared', () => {
-      fetchIncomingPatients();
+    socket.on('route-cleared', ({ emergencyId } = {}) => {
+      if (emergencyId) {
+        const current = useHospitalStore.getState().incomingPatients;
+        const found = current.find((p) => p._id === emergencyId);
+        if (found) updateIncomingPatient({ ...found, routeCleared: true });
+      }
       toast.success('🚦 Route cleared for incoming ambulance!', { autoClose: 5000 });
     });
 

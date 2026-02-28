@@ -90,10 +90,22 @@ const useHospitalStore = create((set) => ({
     }
   },
 
+  // Socket: real-time update to an existing incoming patient entry
+  updateIncomingPatient: (updated) => {
+    if (!updated?._id) return;
+    set((state) => ({
+      incomingPatients: state.incomingPatients.some((p) => p._id === updated._id)
+        ? state.incomingPatients.map((p) => (p._id === updated._id ? updated : p))
+        : [updated, ...state.incomingPatients],
+    }));
+  },
+
   // Socket: incoming patient
   addIncomingPatient: (patient) => {
     set((state) => ({
-      incomingPatients: [patient, ...state.incomingPatients],
+      incomingPatients: state.incomingPatients.some((p) => p._id === patient._id)
+        ? state.incomingPatients
+        : [patient, ...state.incomingPatients],
     }));
     toast.warning('New incoming patient!');
   },

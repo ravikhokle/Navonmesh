@@ -153,17 +153,25 @@ const useEmergencyStore = create((set, get) => ({
 
   // ── Socket helpers ──
   addEmergency: (emergency) => {
+    if (!emergency?._id) return;
     set((state) => ({
-      emergencies: [emergency, ...state.emergencies],
+      // Deduplicate: only prepend if not already present
+      emergencies: state.emergencies.some((e) => e._id === emergency._id)
+        ? state.emergencies
+        : [emergency, ...state.emergencies],
     }));
   },
 
   updateEmergency: (updated) => {
-    set((state) => ({
-      emergencies: state.emergencies.map((e) =>
-        e._id === updated._id ? updated : e
-      ),
-    }));
+    if (!updated?._id) return;
+    set((state) => {
+      const exists = state.emergencies.some((e) => e._id === updated._id);
+      return {
+        emergencies: exists
+          ? state.emergencies.map((e) => (e._id === updated._id ? updated : e))
+          : [updated, ...state.emergencies], // add if somehow missing
+      };
+    });
   },
 
   setCurrentEmergency: (emergency) => set({ currentEmergency: emergency }),

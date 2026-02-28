@@ -18,7 +18,7 @@ import {
 import { toast } from 'react-toastify';
 import useEmergencyStore from '../stores/emergencyStore';
 import useLocationStore from '../stores/locationStore';
-import socket, { connectSocket } from '../lib/socket';
+import socket, { connectSocket, joinEmergencyRoom } from '../lib/socket';
 import LiveMap from '../components/common/LiveMap';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import VoiceInput from '../components/common/VoiceInput';
@@ -155,11 +155,32 @@ export default function CitizenPage() {
       toast.info(response === 'accepted' ? '✅ Hospital has accepted you!' : '❌ Hospital could not accept, ERS is reassigning', { autoClose: 8000 });
     };
 
+    // Real-time: route cleared — reassure the patient ambulance path is clear
+    const handleRouteCleared = ({ emergencyId } = {}) => {
+      setTrackedEmergency((prev) => {
+        if (!prev) return prev;
+        if (emergencyId && prev._id !== emergencyId) return prev;
+        return { ...prev, routeCleared: true };
+      });
+      toast.success('🚦 Traffic route cleared! Ambulance is coming faster.', { autoClose: 7000 });
+    };
+
+    // Real-time: priority updated (ERS or auto-assign)
+    const handlePriorityChanged = (data) => {
+      setTrackedEmergency((prev) => {
+        if (!prev || prev._id !== data._id) return prev;
+        return { ...prev, priority: data.priority };
+      });
+      toast.info(`⚠️ Your emergency priority: ${data.priority?.toUpperCase() ?? 'updated'}`, { autoClose: 6000 });
+    };
+
     socket.on('location-update', handleLocationUpdate);
     socket.on('emergency-updated', handleEmergencyUpdated);
     socket.on('location-cleared', handleLocationCleared);
     socket.on('status-changed', handleStatusChanged);
     socket.on('hospital-response', handleHospitalResponse);
+    socket.on('route-cleared', handleRouteCleared);
+    socket.on('priority-changed', handlePriorityChanged);
 
     return () => {
       socket.off('location-update', handleLocationUpdate);
@@ -167,6 +188,8 @@ export default function CitizenPage() {
       socket.off('location-cleared', handleLocationCleared);
       socket.off('status-changed', handleStatusChanged);
       socket.off('hospital-response', handleHospitalResponse);
+      socket.off('route-cleared', handleRouteCleared);
+      socket.off('priority-changed', handlePriorityChanged);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -182,8 +205,8 @@ export default function CitizenPage() {
       });
       if (emergency) {
         setTrackedEmergency(emergency);
-        // Join emergency socket room for targeted updates
-        socket.emit('join-emergency', emergency._id);
+        // Join emergency socket room for targeted real-time updates
+        joinEmergencyRoom(emergency._id);
         // Open phone dialer with 108 pre-dialled so patient can speak to ERS immediately
         window.location.href = 'tel:108';
       }

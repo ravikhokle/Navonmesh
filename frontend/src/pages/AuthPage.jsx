@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { Shield, Eye, EyeOff, LogIn, UserPlus, Mail, ArrowRight } from 'lucide-react';
+import { Shield, Eye, EyeOff, LogIn, UserPlus, ArrowRight } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
 
 const ROLES = [
@@ -49,7 +49,6 @@ export default function AuthPage() {
   const [signupErrors, setSignupErrors] = useState({});
   const [showSignupPw, setShowSignupPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
-  const [signupSuccess, setSignupSuccess] = useState(false);
 
   const { login, signup, isLoading } = useAuthStore();
 
@@ -103,7 +102,8 @@ export default function AuthPage() {
         city: signupForm.city,
         role: signupForm.role,
       });
-      setSignupSuccess(true);
+      // Switch to login tab — user is ready to sign in immediately
+      setActiveTab('login');
     } catch {
       // toast handled in store
     }
@@ -217,15 +217,7 @@ export default function AuthPage() {
                   {loginErrors.role && <p className="mt-1 text-xs text-red-500">{loginErrors.role}</p>}
                 </div>
 
-                {/* Forgot password */}
-                <div className="flex justify-end">
-                  <Link
-                    to="/forgot-password"
-                    className="text-xs text-red-600 hover:text-red-700 font-medium transition-colors"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
+                {/* Forgot password removed */}
 
                 {/* Submit */}
                 <button
@@ -257,30 +249,7 @@ export default function AuthPage() {
           {/* ══════════ SIGNUP TAB ══════════ */}
           {activeTab === 'signup' && (
             <div className="p-6 pt-5">
-              {signupSuccess ? (
-                <div className="text-center py-6">
-                  <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Mail size={28} className="text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">Check Your Email</h3>
-                  <p className="text-sm text-gray-500 mb-1">
-                    We've sent a verification link to
-                  </p>
-                  <p className="text-sm font-semibold text-gray-700 mb-4">{signupForm.email}</p>
-                  <p className="text-xs text-gray-400 mb-6">
-                    Click the link to verify, then come back and sign in.
-                  </p>
-                  <button
-                    onClick={() => { setSignupSuccess(false); setActiveTab('login'); }}
-                    className="inline-flex items-center gap-2 bg-gradient-to-r from-gray-900 to-gray-800 text-white font-semibold px-6 py-2.5 rounded-xl transition-all cursor-pointer shadow-md shadow-gray-900/20 hover:from-gray-800 hover:to-gray-700"
-                  >
-                    <LogIn size={16} />
-                    Go to Sign In
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <form onSubmit={handleSignup} className="space-y-4" noValidate>
+              <form onSubmit={handleSignup} className="space-y-4" noValidate>
                     {/* Name */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
@@ -408,8 +377,6 @@ export default function AuthPage() {
                       Go to SOS <ArrowRight size={13} className="inline mb-0.5" />
                     </Link>
                   </p>
-                </>
-              )}
             </div>
           )}
         </div>

@@ -65,12 +65,21 @@ export default function AmbulanceDashboard() {
     fetchLiveLocations();
     connectSocket();
 
+    // Sync isOnDuty from server so page refresh reflects correct state
+    import('../stores/ambulanceStore').then(({ default: store }) => {
+      store.getState().fetchDutyStatus();
+    });
+
     socket.on('ambulance-assigned', (data) => {
       addAssignment(data);
       toast.info('🚑 New emergency assigned!', { autoClose: 8000 });
     });
     socket.on('emergency-updated', (data) => {
       updateEmergency(data);
+    });
+    // status-changed is more precise than emergency-updated for status transitions
+    socket.on('status-changed', ({ emergency }) => {
+      updateEmergency(emergency);
     });
 
     // Real-time: hospital accepted/rejected patient
@@ -81,8 +90,13 @@ export default function AmbulanceDashboard() {
     });
 
     // Real-time: route cleared by traffic police
-    socket.on('route-cleared', () => {
-      fetchAssignedEmergencies();
+    socket.on('route-cleared', ({ emergencyId } = {}) => {
+      // If we have the emergency locally, mark it cleared instead of re-fetching
+      if (emergencyId) {
+        const current = useAmbulanceStore.getState().assignedEmergencies;
+        const found = current.find((e) => e._id === emergencyId);
+        if (found) updateEmergency({ ...found, routeCleared: true });
+      }
       toast.success('🚦 Route has been cleared!', { autoClose: 5000 });
     });
 
@@ -98,6 +112,7 @@ export default function AmbulanceDashboard() {
     return () => {
       socket.off('ambulance-assigned');
       socket.off('emergency-updated');
+      socket.off('status-changed');
       socket.off('hospital-response');
       socket.off('route-cleared');
       socket.off('priority-changed');
