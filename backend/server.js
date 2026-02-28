@@ -22,10 +22,24 @@ connectDB();
 const app = express();
 const httpServer = createServer(app);
 
+const allowedOrigins = [
+  "https://emergexnew.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:5174",
+];
+
+// Dynamic origin checker — required for credentials: true to work properly
+const corsOriginFn = (origin, callback) => {
+  // Allow requests with no origin (mobile apps, curl, Postman)
+  if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+  callback(new Error(`CORS: origin '${origin}' not allowed`));
+};
+
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: corsOriginFn,
     methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
   },
 });
 
@@ -41,7 +55,14 @@ app.set("liveLocations", liveLocations);
 const lastAutoAssignCheck = {};
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: corsOriginFn,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(express.json());
 
 // API Routes

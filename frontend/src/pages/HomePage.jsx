@@ -146,41 +146,61 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* ─── Hero Section (dark) ─── */}
-      <section className="bg-gradient-to-br from-[#1a1f2e] via-[#1e2a42] to-[#151e2e] relative overflow-hidden">
-        {/* Background Image */}
-        <img src={heroBg} alt="Emergency response" className="absolute w-full h-full object-cover opacity-30 pointer-events-none" />
-        
-        {/* Multiple background glows for depth */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-500/8 rounded-full blur-3xl pointer-events-none animate-pulse" />
-        <div className="absolute -bottom-20 left-1/4 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+      {/* ─── Hero Section ─── */}
+      <section className="relative w-full min-h-[calc(100vh-4rem)] flex items-center overflow-hidden bg-[#0d1117]">
+        {/* Full-width background image */}
+        <img
+          src={heroBg}
+          alt="Emergency response"
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          style={{ opacity: 0.55 }}
+        />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-20 sm:pt-20 sm:pb-24 relative z-10">
+        {/* Left-to-right gradient: dark on left for text readability, fades to transparent on right */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0d1117] via-[#0d1117]/80 to-transparent pointer-events-none" />
+        {/* Bottom fade so stats bar blends in */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0d1117] to-transparent pointer-events-none" />
+        {/* Subtle red glow top-right */}
+        <div className="absolute -top-20 right-0 w-[480px] h-[480px] bg-red-600/20 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Content */}
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-red-500/15 to-red-600/5 border border-red-500/30 rounded-full px-5 py-2 mb-8 hover:border-red-500/50 hover:from-red-500/20 transition-all duration-300 shadow-lg shadow-red-500/10">
+          <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/40 rounded-full px-5 py-2 mb-8 backdrop-blur-sm">
             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-            <span className="text-sm font-semibold text-red-400">Intelligent Emergency Response</span>
+            <span className="text-sm font-semibold text-red-400 tracking-wide">Intelligent Emergency Response</span>
           </div>
 
           {/* Heading */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight max-w-2xl">
-            Every Second{' '}
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] max-w-2xl drop-shadow-xl">
+            Every Second
             <br />
-            <span className="bg-gradient-to-r from-red-500 via-red-400 to-red-600 bg-clip-text text-transparent animate-pulse">
+            <span className="bg-gradient-to-r from-red-500 via-red-400 to-red-600 bg-clip-text text-transparent">
               Saves a Life
             </span>
           </h1>
 
           {/* Description */}
-          <p className="mt-6 text-lg text-gray-400 max-w-xl leading-relaxed font-medium">
+          <p className="mt-6 text-lg sm:text-xl text-gray-300 max-w-lg leading-relaxed">
             Real-time coordination between citizens, ambulances, hospitals, and traffic authorities.
             Powered by intelligent routing and instant alerts.
           </p>
+
+          {/* CTA */}
+          <div className="mt-10 flex flex-wrap gap-4">
+            <Link
+              to="/citizen"
+              className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-7 py-3.5 rounded-xl shadow-lg shadow-red-600/40 transition-all duration-300 hover:scale-105 hover:shadow-red-600/60 text-base"
+            >
+              <Siren size={20} />
+              Report Emergency
+            </Link>
+          </div>
         </div>
       </section>
 
       {/* ─── Stats Bar ─── */}
-      <section className="relative z-10 -mt-8 px-4 sm:px-6 lg:px-8">
+      <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-8 bg-gray-50 border-t border-gray-200">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {stats.map(({ icon: StatIcon, label, value }) => (
