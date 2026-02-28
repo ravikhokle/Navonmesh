@@ -261,8 +261,10 @@ export default function ERSDashboard() {
         if (['assigned', 'en_route'].includes(e.status) && e.location?.coordinates) {
           routes.push({
             origin,
-            destination: { lat: e.location.coordinates[1], lng: e.location.coordinates[0] },
-            color: '#1a73e8',
+            destination:      { lat: e.location.coordinates[1], lng: e.location.coordinates[0] },
+            color:            '#1a73e8',
+            originLabel:      `Ambulance: ${e.assignedAmbulance?.name ?? 'Ambulance'}`,
+            destinationLabel: `Patient: ${e.citizenName ?? 'Emergency'}`,
           });
         } else if (e.status === 'picked_up' && e.assignedHospital?.location?.coordinates) {
           routes.push({
@@ -271,7 +273,9 @@ export default function ERSDashboard() {
               lat: e.assignedHospital.location.coordinates[1],
               lng: e.assignedHospital.location.coordinates[0],
             },
-            color: '#0f9d58',
+            color:            '#0f9d58',
+            originLabel:      `Ambulance: ${e.assignedAmbulance?.name ?? 'Ambulance'}`,
+            destinationLabel: e.assignedHospital?.name ?? 'Hospital',
           });
         }
       });

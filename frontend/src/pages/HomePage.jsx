@@ -207,8 +207,9 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-            {panels.map(({ to, role, icon: PanelIcon, label, desc, iconBg }) => {
-              const dest = token ? to : `/login${role ? `?role=${role}` : ''}`;
+            {panels.map(({ to, role, icon: PanelIcon, label, desc, iconBg, public: isPublic }) => {
+              // Public panels (citizen) are always accessible without login
+              const dest = isPublic || token ? to : `/login${role ? `?role=${role}` : ''}`;
               return (
                 <Link
                   key={to}

@@ -195,9 +195,11 @@ export default function HospitalDashboard() {
       const live = liveLocations[ambId]; // live only — no DB fallback
       if (!live?.lat) return;
       routes.push({
-        origin: { lat: live.lat, lng: live.lng },
-        destination: { lat: hospLat, lng: hospLng },
-        color: '#0f9d58',
+        origin:           { lat: live.lat, lng: live.lng },
+        destination:      { lat: hospLat, lng: hospLng },
+        color:            '#0f9d58',
+        originLabel:      `Ambulance: ${p.assignedAmbulance?.name ?? 'Ambulance'}`,
+        destinationLabel: hospital?.name ?? 'This Hospital',
       });
     });
     return routes;

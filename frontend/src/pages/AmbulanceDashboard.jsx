@@ -195,15 +195,19 @@ export default function AmbulanceDashboard() {
         const st = activeEmergency.status;
         if (['assigned', 'en_route', 'hospital_notified'].includes(st) && patLat != null) {
           routes.push({
-            origin: myLocation,
-            destination: { lat: patLat, lng: patLng },
-            color: '#1a73e8',
+            origin:           myLocation,
+            destination:      { lat: patLat, lng: patLng },
+            color:            '#1a73e8',
+            originLabel:      'Ambulance (My Location)',
+            destinationLabel: `Patient: ${activeEmergency.citizenName ?? 'Unknown'}`,
           });
         } else if (st === 'picked_up' && hospLat != null) {
           routes.push({
-            origin: myLocation,
-            destination: { lat: hospLat, lng: hospLng },
-            color: '#0f9d58',
+            origin:           myLocation,
+            destination:      { lat: hospLat, lng: hospLng },
+            color:            '#0f9d58',
+            originLabel:      'Ambulance (My Location)',
+            destinationLabel: hosp?.name ?? 'Hospital',
           });
         }
       }
