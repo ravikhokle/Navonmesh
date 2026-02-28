@@ -52,11 +52,12 @@ export default function ERSDashboard() {
   const { liveLocations, updateLocation, fetchLiveLocations, removeLocation } = useLocationStore();
   const { searchQuery } = useSearch();
 
-  // ── Filtered emergencies by search ──
+  // ── Filtered emergencies by search — exclude completed ones ──
   const filteredEmergencies = useMemo(() => {
-    if (!searchQuery.trim()) return emergencies;
+    const active = emergencies.filter((e) => e.status !== 'completed');
+    if (!searchQuery.trim()) return active;
     const q = searchQuery.toLowerCase();
-    return emergencies.filter((e) =>
+    return active.filter((e) =>
       (e.citizenName || '').toLowerCase().includes(q) ||
       (e.citizenPhone || '').toLowerCase().includes(q) ||
       (e.description || '').toLowerCase().includes(q) ||
@@ -732,11 +733,11 @@ function EmergencyCard({
   };
 
   const handleSendAlert = async () => {
-    if (!selectedAmbulance && !selectedHospital) return;
+    if (!selectedAmbulance || !selectedHospital) return;
     setSending(true);
     await onSendAlertAll({
-      ambulanceId: selectedAmbulance || null,
-      hospitalId: selectedHospital || null,
+      ambulanceId: selectedAmbulance,
+      hospitalId: selectedHospital,
       priority: selectedPriority,
     });
     setSending(false);
@@ -924,9 +925,9 @@ function EmergencyCard({
           {/* Send Alert Button */}
           <button
             onClick={handleSendAlert}
-            disabled={sending || (!selectedAmbulance && !selectedHospital)}
+            disabled={sending || !selectedAmbulance || !selectedHospital}
             className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              !selectedAmbulance && !selectedHospital
+              !selectedAmbulance || !selectedHospital
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200'
             }`}
@@ -935,6 +936,21 @@ function EmergencyCard({
               <>
                 <RefreshCw size={16} className="animate-spin" />
                 Sending Alert...
+              </>
+            ) : !selectedAmbulance && !selectedHospital ? (
+              <>
+                <Send size={16} />
+                Select Ambulance &amp; Hospital to Send
+              </>
+            ) : !selectedAmbulance ? (
+              <>
+                <Send size={16} />
+                Select an Ambulance to Send
+              </>
+            ) : !selectedHospital ? (
+              <>
+                <Send size={16} />
+                Select a Hospital to Send
               </>
             ) : (
               <>
