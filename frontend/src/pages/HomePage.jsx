@@ -149,7 +149,7 @@ export default function HomePage() {
       {/* ─── Hero Section (dark) ─── */}
       <section className="bg-gradient-to-br from-[#1a1f2e] via-[#1e2a42] to-[#151e2e] relative overflow-hidden">
         {/* Background Image */}
-        <img src={heroBg} alt="Emergency response" className="absolute w-full h-full object-cover opacity-30 pointer-events-none" />
+        <img src={heroBg} alt="Emergency response" className="absolute w-full h-full object-contain opacity-30 pointer-events-none" />
         
         {/* Multiple background glows for depth */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-500/8 rounded-full blur-3xl pointer-events-none animate-pulse" />
