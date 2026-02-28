@@ -201,14 +201,14 @@ export default function TrafficDashboard() {
     <div className="space-y-6">
 
       {/* ── Duty Top Bar ── */}
-      <div className={`card flex flex-col sm:flex-row items-center justify-between gap-4 ${isOnDuty ? 'ring-2 ring-emerald-400' : ''}`}>
+      <div className={`card flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${isOnDuty ? 'ring-2 ring-emerald-400/50 shadow-emerald-100' : ''}`}>
         <div className="flex items-center gap-4">
-          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isOnDuty ? 'bg-emerald-50' : 'bg-gray-100'}`}>
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${isOnDuty ? 'bg-emerald-50' : 'bg-gray-100'}`}>
             {isOnDuty ? <ShieldCheck size={28} className="text-emerald-600" /> : <ShieldOff size={28} className="text-gray-400" />}
           </div>
           <div>
             <h2 className="text-xl font-bold text-gray-900">Traffic Control</h2>
-            <p className={`text-sm ${isOnDuty ? 'text-emerald-600' : 'text-gray-500'}`}>
+            <p className={`text-sm font-medium ${isOnDuty ? 'text-emerald-600' : 'text-gray-500'}`}>
               {isOnDuty
                 ? myLocation
                   ? '📡 On Duty — Sharing live location'
@@ -231,31 +231,31 @@ export default function TrafficDashboard() {
 
       {/* ── Stats ── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
+        <div className="card flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center shadow-sm shadow-amber-100">
             <AlertTriangle size={22} className="text-amber-600" />
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">{pendingAlerts.length}</p>
-            <p className="text-xs text-gray-500">Pending Alerts</p>
+            <p className="text-xs text-gray-500 font-medium">Pending Alerts</p>
           </div>
         </div>
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
+        <div className="card flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center shadow-sm shadow-emerald-100">
             <CheckCircle2 size={22} className="text-emerald-600" />
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">{clearedAlerts.length}</p>
-            <p className="text-xs text-gray-500">Cleared</p>
+            <p className="text-xs text-gray-500 font-medium">Cleared</p>
           </div>
         </div>
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
+        <div className="card flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center shadow-sm shadow-blue-100">
             <Shield size={22} className="text-blue-600" />
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">{activeAlerts.length}</p>
-            <p className="text-xs text-gray-500">Total Assigned</p>
+            <p className="text-xs text-gray-500 font-medium">Total Assigned</p>
           </div>
         </div>
       </div>

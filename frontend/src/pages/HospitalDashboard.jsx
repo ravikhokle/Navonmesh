@@ -336,12 +336,12 @@ export default function HospitalDashboard() {
       {/* Hospital info */}
       {hospital && (
         <div className="card flex items-center gap-4">
-          <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center">
-            <Building2 size={28} className="text-red-600" />
+          <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-700 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/20">
+            <Building2 size={28} className="text-white" />
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-bold text-gray-900">{hospital.name}</h2>
-            <p className="text-sm text-gray-500">{hospital.city}</p>
+            <p className="text-sm text-gray-500 font-medium">{hospital.city}</p>
           </div>
           {hospital.phone && (
             <span className="text-sm text-gray-500 flex items-center gap-1">
@@ -365,35 +365,35 @@ export default function HospitalDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
+        <div className="card flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center shadow-sm shadow-emerald-100">
             <CheckCircle2 size={22} className="text-emerald-600" />
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">{beds}</p>
-            <p className="text-xs text-gray-500">Available Beds</p>
+            <p className="text-xs text-gray-500 font-medium">Available Beds</p>
           </div>
         </div>
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
+        <div className="card flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center shadow-sm shadow-red-100">
             <UserPlus size={22} className="text-red-600" />
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">
               {incomingPatients.filter((p) => p.hospitalResponse === 'pending').length}
             </p>
-            <p className="text-xs text-gray-500">Pending Patients</p>
+            <p className="text-xs text-gray-500 font-medium">Pending Patients</p>
           </div>
         </div>
-        <div className="card flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center">
+        <div className="card flex items-center gap-4 hover:shadow-md transition-all">
+          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center shadow-sm shadow-amber-100">
             <AlertTriangle size={22} className="text-amber-600" />
           </div>
           <div>
             <p className="text-2xl font-bold text-gray-900">
               {incomingPatients.filter((p) => p.hospitalResponse === 'accepted').length}
             </p>
-            <p className="text-xs text-gray-500">Accepted</p>
+            <p className="text-xs text-gray-500 font-medium">Accepted</p>
           </div>
         </div>
       </div>

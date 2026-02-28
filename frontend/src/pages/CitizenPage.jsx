@@ -452,16 +452,16 @@ export default function CitizenPage() {
     <div className="space-y-6">
 
       {/* ── Call 108 Banner (always visible, fastest way to reach ERS) ── */}
-      <div className="card border border-red-200 bg-red-50 flex items-center justify-between gap-4">
+      <div className="card border-2 border-red-200 bg-gradient-to-r from-red-50 to-red-50/50 flex items-center justify-between gap-4">
         <div>
           <p className="font-bold text-red-800">Life-threatening emergency?</p>
-          <p className="text-sm text-red-600 mt-0.5">
+          <p className="text-sm text-red-600 mt-0.5 font-medium">
             Tap <strong>Call 108</strong> to open your phone dialer instantly — press call to reach ERS
           </p>
         </div>
         <a
           href="tel:108"
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold px-5 py-3 rounded-xl text-sm transition-all duration-150 flex-shrink-0 cursor-pointer no-underline"
+          className="flex items-center gap-2 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 active:scale-95 text-white font-bold px-5 py-3 rounded-xl text-sm transition-all duration-150 flex-shrink-0 cursor-pointer no-underline shadow-lg shadow-red-600/30"
         >
           <PhoneCall size={18} />
           Call 108
@@ -477,7 +477,7 @@ export default function CitizenPage() {
             <button
               onClick={handleSOS}
               disabled={isLoading || !myLocation}
-              className="group relative w-40 h-40 mx-auto rounded-full bg-red-600 hover:bg-red-700 active:scale-95 disabled:bg-gray-300 transition-all duration-200 shadow-lg shadow-red-600/30 hover:shadow-red-600/50 cursor-pointer"
+              className="group relative w-40 h-40 mx-auto rounded-full bg-gradient-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 active:scale-95 disabled:from-gray-300 disabled:to-gray-400 transition-all duration-200 shadow-xl shadow-red-600/30 hover:shadow-red-600/50 cursor-pointer"
             >
               <div className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-20" />
               <div className="relative flex flex-col items-center justify-center text-white">

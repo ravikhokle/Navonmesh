@@ -28,28 +28,32 @@ const panels = [
     public: true,
   },
   {
-    to: '/login?role=ers',
+    to: '/ers',
+    role: 'ers',
     icon: LayoutDashboard,
     label: 'ERS Command',
     desc: 'Coordinate & dispatch emergency units',
     iconBg: 'bg-indigo-500',
   },
   {
-    to: '/login?role=ambulance',
+    to: '/ambulance',
+    role: 'ambulance',
     icon: Truck,
     label: 'Ambulance Driver',
     desc: 'Respond to emergencies in real-time',
     iconBg: 'bg-blue-500',
   },
   {
-    to: '/login?role=hospital',
+    to: '/hospital',
+    role: 'hospital',
     icon: Building2,
     label: 'Hospital Admin',
     desc: 'Manage beds & incoming patients',
     iconBg: 'bg-emerald-500',
   },
   {
-    to: '/login?role=traffic',
+    to: '/traffic',
+    role: 'traffic',
     icon: TrafficCone,
     label: 'Traffic Police',
     desc: 'Clear routes & manage traffic flow',
@@ -203,34 +207,36 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-            {panels.map(({ to, icon: PanelIcon, label, desc, iconBg }) => (
-              <Link
-                key={to}
-                to={to}
-                className="group bg-white rounded-2xl border-2 border-gray-200 shadow-md hover:shadow-2xl hover:shadow-black/20 hover:border-black transition-all duration-300 ease-out p-6 flex flex-col hover:translate-y-[-6px] hover:bg-gradient-to-br hover:from-white hover:to-red-50/30 overflow-hidden relative"
-              >
-                {/* Gradient overlay on hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 to-red-600/0 group-hover:from-red-500/5 group-hover:to-red-600/5 transition-all duration-300 pointer-events-none" />
-                
-                {/* Icon */}
-                <div
-                  className={`w-14 h-14 ${iconBg} rounded-xl flex items-center justify-center mb-6 shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300 relative z-10`}
+            {panels.map(({ to, role, icon: PanelIcon, label, desc, iconBg }) => {
+              const dest = token ? to : `/login${role ? `?role=${role}` : ''}`;
+              return (
+                <Link
+                  key={to}
+                  to={dest}
+                  className="group bg-white rounded-2xl border-2 border-gray-200 shadow-md hover:shadow-2xl hover:shadow-black/20 hover:border-black transition-all duration-300 ease-out p-6 flex flex-col hover:translate-y-[-6px] hover:bg-gradient-to-br hover:from-white hover:to-red-50/30 overflow-hidden relative"
                 >
-                  <PanelIcon size={24} className="text-white" />
-                </div>
+                  {/* Gradient overlay on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 to-red-600/0 group-hover:from-red-500/5 group-hover:to-red-600/5 transition-all duration-300 pointer-events-none" />
+                  
+                  {/* Icon */}
+                  <div
+                    className={`w-14 h-14 ${iconBg} rounded-xl flex items-center justify-center mb-6 shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300 relative z-10`}
+                  >
+                    <PanelIcon size={24} className="text-white" />
+                  </div>
 
-                {/* Text */}
-                <h3 className="text-lg font-bold text-gray-900 mb-2 relative z-10">{label}</h3>
-                <p className="text-sm text-gray-600 leading-relaxed mb-5 flex-1 relative z-10 font-medium">{desc}</p>
+                  {/* Text */}
+                  <h3 className="text-lg font-bold text-gray-900 mb-2 relative z-10">{label}</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed mb-5 flex-1 relative z-10 font-medium">{desc}</p>
 
-                {/* CTA */}
-                <span className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 group-hover:text-red-600 transition-all duration-300 relative z-10">
-                  Open Dashboard
-                  <ArrowRight size={16} className="group-hover:translate-x-2 group-hover:scale-125 transition-all duration-300" />
-                </span>
-              </Link>
-            ))}
-          </div>
+                  {/* CTA */}
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-gray-900 group-hover:text-red-600 transition-all duration-300 relative z-10">
+                    Open Dashboard
+                    <ArrowRight size={16} className="group-hover:translate-x-2 group-hover:scale-125 transition-all duration-300" />
+                  </span>
+                </Link>
+              );
+            })}          </div>
         </div>
       </section>
 
