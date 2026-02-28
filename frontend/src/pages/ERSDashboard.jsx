@@ -211,8 +211,10 @@ export default function ERSDashboard() {
   const mapMarkers = useMemo(() => {
     const markers = [];
 
-    // Emergencies / patient locations (red)
-    emergencies.forEach((e) => {
+    // Emergencies / patient locations (red) — only active ones, not completed or already at hospital
+    emergencies
+      .filter((e) => e.status !== 'completed' && e.status !== 'hospital_notified')
+      .forEach((e) => {
       if (e.location?.coordinates) {
         markers.push({
           type: 'emergency',
